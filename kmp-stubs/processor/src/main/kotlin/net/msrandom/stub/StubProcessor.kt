@@ -9,14 +9,20 @@ import com.google.devtools.ksp.processing.SymbolProcessor
 import com.google.devtools.ksp.processing.SymbolProcessorEnvironment
 import com.google.devtools.ksp.processing.SymbolProcessorProvider
 import com.google.devtools.ksp.symbol.*
+import com.squareup.kotlinpoet.AnnotationSpec
+import com.squareup.kotlinpoet.CodeBlock
 import com.squareup.kotlinpoet.FileSpec
 import com.squareup.kotlinpoet.FunSpec
 import com.squareup.kotlinpoet.KModifier
 import com.squareup.kotlinpoet.PropertySpec
 import com.squareup.kotlinpoet.TypeSpec
+import com.squareup.kotlinpoet.ksp.toClassName
 import com.squareup.kotlinpoet.ksp.toKModifier
 import com.squareup.kotlinpoet.ksp.toTypeName
 import com.squareup.kotlinpoet.ksp.writeTo
+import kotlin.reflect.KClass
+import kotlin.sequences.map
+import kotlin.sequences.toList
 
 private typealias PackageStubInfo = Pair<FileSpec.Builder, MutableList<KSFile>>
 
@@ -29,10 +35,32 @@ class StubProcessor(private val environment: SymbolProcessorEnvironment) : Symbo
         }
     } + KModifier.ACTUAL
 
+    private fun mapAnnotations(annotations: Sequence<KSAnnotation>) = annotations.map {
+        val builder = AnnotationSpec.builder(it.annotationType.resolve().toClassName())
+
+        for (argument in it.arguments) {
+            val value = argument.value
+
+            if (value is KClass<*>) {
+                builder.addMember("%T::class", value.qualifiedName!!)
+            } else if (value is String) {
+                builder.addMember("\"%s\"", value)
+            } else {
+                builder.addMember(value.toString())
+            }
+        }
+
+        builder.build()
+    }.toList()
+
     private fun fileSpec(
         declaration: KSDeclaration,
         declarations: MutableMap<KSName, PackageStubInfo>
-    ): FileSpec.Builder {
+    ): FileSpec.Builder? {
+        if (Modifier.ACTUAL in declaration.modifiers) {
+            return null
+        }
+
         if (Modifier.EXPECT !in declaration.modifiers) {
             throw UnsupportedOperationException("Only expect members can be @Stub, but $declaration is not expect")
         }
@@ -62,7 +90,7 @@ class StubProcessor(private val environment: SymbolProcessorEnvironment) : Symbo
     }
 
     private fun generate(type: KSClassDeclaration, declarations: MutableMap<KSName, PackageStubInfo>) {
-        val spec = fileSpec(type, declarations)
+        val spec = fileSpec(type, declarations) ?: return
 
         val typeBuilder = when (type.classKind) {
             ClassKind.INTERFACE -> TypeSpec.interfaceBuilder(type.simpleName.asString())
@@ -74,6 +102,8 @@ class StubProcessor(private val environment: SymbolProcessorEnvironment) : Symbo
         }
 
         typeBuilder.addModifiers(mapModifiers(type.modifiers))
+
+        typeBuilder.addAnnotations(mapAnnotations(type.annotations))
 
         if (type.classKind == ClassKind.ENUM_CLASS) {
             for (declaration in type.declarations) {
@@ -93,7 +123,8 @@ class StubProcessor(private val environment: SymbolProcessorEnvironment) : Symbo
         val builder = if (function.isConstructor()) {
             FunSpec.constructorBuilder()
         } else {
-            val builder = FunSpec.builder(function.simpleName.asString()).addCode("return TODO(\"Common modules are not runnable\")")
+            val builder = FunSpec.builder(function.simpleName.asString())
+                .addCode("return TODO(\"Common modules are not runnable\")")
 
             function.returnType?.toTypeName()?.let(builder::returns)
 
@@ -101,6 +132,7 @@ class StubProcessor(private val environment: SymbolProcessorEnvironment) : Symbo
         }
 
         builder.addModifiers(mapModifiers(function.modifiers))
+        builder.addAnnotations(mapAnnotations(function.annotations))
 
         for (parameter in function.parameters) {
             builder.addParameter(parameter.name!!.asString(), parameter.type.toTypeName())
@@ -116,6 +148,8 @@ class StubProcessor(private val environment: SymbolProcessorEnvironment) : Symbo
             mapModifiers(property.modifiers),
         )
 
+        builder.addAnnotations(mapAnnotations(property.annotations))
+
         builder.receiver(property.extensionReceiver?.toTypeName())
         builder.mutable(property.isMutable)
 
@@ -128,7 +162,7 @@ class StubProcessor(private val environment: SymbolProcessorEnvironment) : Symbo
         function: KSFunctionDeclaration,
         declarations: MutableMap<KSName, PackageStubInfo>
     ) {
-        val spec = fileSpec(function, declarations)
+        val spec = fileSpec(function, declarations) ?: return
 
         spec.addFunction(functionSpec(function))
     }
@@ -137,7 +171,7 @@ class StubProcessor(private val environment: SymbolProcessorEnvironment) : Symbo
         property: KSPropertyDeclaration,
         declarations: MutableMap<KSName, PackageStubInfo>
     ) {
-        val spec = fileSpec(property, declarations)
+        val spec = fileSpec(property, declarations) ?: return
 
         spec.addProperty(propertySpec(property))
     }
