@@ -120,7 +120,7 @@ object StubGenerator {
         node.version = min(nodeA.version, nodeB.version)
         node.access = nodeA.access
         node.name = nodeA.name
-        node.signature = nodeB.signature?.let { nodeA.signature?.commonPrefixWith(it) } ?: nodeA.signature
+        node.signature = nodeB.signature?.let { nodeA.signature?.commonPrefixWith(it) }
 
         node.superName = findCommonSuper(nodeA, nodeB, classpathA, classpathB)
 
@@ -166,7 +166,7 @@ object StubGenerator {
                         methodB.signature,
                         methodB.exceptions.toTypedArray().intersect(methodA.exceptions.toSet()).toTypedArray(),
                     ).also {
-                        methodA.annotationDefault?.run {
+                        if (methodA.annotationDefault != null) {
                             it.annotationDefault = methodA.annotationDefault
                         }
                     }
