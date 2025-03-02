@@ -51,7 +51,20 @@ object StubGenerator {
                 visibilityA
             }
 
-        return a and VISIBILITY_MASK.inv() or visibility
+        val deprecated = a and Opcodes.ACC_DEPRECATED
+
+        val base = if (deprecated != (b and Opcodes.ACC_DEPRECATED)) {
+            // One is potentially deprecated while the other isn't, choose the not deprecated one
+            if (deprecated == 0) {
+                a
+            } else {
+                b
+            }
+        } else {
+            a
+        }
+
+        return (base and VISIBILITY_MASK.inv()) or visibility
     }
 
     private fun findCommonSuper(
@@ -239,10 +252,10 @@ object StubGenerator {
         val classpaths = classpaths.map {
             val artifacts = it.artifacts.get().filter { it.id !is ProjectComponentIdentifier }
 
-            val (included, excluded) = artifacts.partition {
+            val (excluded, included) = artifacts.partition {
                 val id = it.id.componentIdentifier
 
-                id !is ModuleComponentIdentifier || exclude.none(id.group::startsWith)
+                id is ModuleComponentIdentifier && exclude.any(id.group::startsWith)
             }
 
             ClasspathLoader(
@@ -307,6 +320,11 @@ object StubGenerator {
             }
         }
 
+        for (classpath in classpaths) {
+            // TODO Make this exception safe
+            classpath.close()
+        }
+
         return intersectedExcludedArtifacts
     }
 
@@ -314,7 +332,7 @@ object StubGenerator {
         val intersectionIncluded: List<File>,
         val intersectionExcluded: List<ResolvedArtifactResult>,
         private val cache: MutableMap<String, ClassNode?> = hashMapOf(),
-    ) {
+    ) : AutoCloseable {
         val loader = URLClassLoader(
             (intersectionIncluded + intersectionExcluded.map(ResolvedArtifactResult::getFile))
                 .map { it.toURI().toURL() }
@@ -328,5 +346,7 @@ object StubGenerator {
                 }
             }
         }
+
+        override fun close() = loader.close()
     }
 }
