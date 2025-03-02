@@ -11,7 +11,7 @@ fun includeSubproject(name: String, path: String) {
 includeSubproject("java-virtual-source-sets-idea", "virtual-source-sets/idea-plugin")
 includeSubproject("java-virtual-source-sets", "virtual-source-sets/gradle-plugin")
 
-includeSubproject( "java-expect-actual-idea", "java-expect-actual/idea-plugin")
+includeSubproject("java-expect-actual-idea", "java-expect-actual/idea-plugin")
 includeSubproject("java-expect-actual-annotations", "java-expect-actual/annotations")
 includeSubproject("java-expect-actual-processor", "java-expect-actual/processor")
 
@@ -23,3 +23,5 @@ includeSubproject("class-extensions-gradle-plugin", "class-extensions/gradle-plu
 includeSubproject("class-extension-annotations", "class-extensions/annotations")
 includeSubproject("java-class-extensions-processor", "class-extensions/java-processor")
 includeSubproject("kotlin-class-extensions-plugin", "class-extensions/kotlin-plugin")
+
+include("classpath-api-stubs")
