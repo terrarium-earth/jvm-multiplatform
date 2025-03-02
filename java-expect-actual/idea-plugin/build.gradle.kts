@@ -1,24 +1,26 @@
 plugins {
   kotlin("jvm")
-  id("org.jetbrains.intellij")
+  id("org.jetbrains.intellij.platform")
 }
 
 repositories {
   mavenCentral()
-  mavenLocal()
+
+  intellijPlatform {
+    defaultRepositories()
+  }
 }
 
 dependencies {
   implementation(projects.javaExpectActualAnnotations)
-}
 
-// Configure Gradle IntelliJ Plugin
-// Read more: https://plugins.jetbrains.com/docs/intellij/tools-gradle-intellij-plugin.html
-intellij {
-  version.set("2024.1")
-  type.set("IC") // Target IDE Platform
+  intellijPlatform {
+    intellijIdeaCommunity("2024.3.1")
 
-  plugins.set(listOf("gradle", "java"/*, "net.msrandom.java-virtual-sourcesets:1.0.0"*/))
+    bundledPlugin("com.intellij.java")
+    bundledPlugin("com.intellij.gradle")
+    localPlugin(projects.javaVirtualSourceSetsIdea)
+  }
 }
 
 tasks {
@@ -27,13 +29,9 @@ tasks {
     sourceCompatibility = "11"
     targetCompatibility = "11"
   }
+
   withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
     kotlinOptions.jvmTarget = "11"
-  }
-
-  patchPluginXml {
-    sinceBuild.set("241")
-    untilBuild.set("251.*")
   }
 
   signPlugin {

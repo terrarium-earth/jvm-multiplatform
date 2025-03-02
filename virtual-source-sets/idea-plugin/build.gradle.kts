@@ -2,13 +2,17 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
     kotlin("jvm")
-    id("org.jetbrains.intellij")
+    id("org.jetbrains.intellij.platform")
     groovy
     `maven-publish`
 }
 
 repositories {
     mavenCentral()
+
+    intellijPlatform {
+        defaultRepositories()
+    }
 }
 
 val gradleToolingExtension: SourceSet by sourceSets.creating
@@ -30,20 +34,18 @@ repositories {
 dependencies {
     gradleToolingExtension.implementationConfigurationName(kotlin("stdlib"))
 
-    gradleToolingExtension.compileOnlyConfigurationName(group = "com.jetbrains.intellij.gradle", name = "gradle-tooling-extension", version = "241.18034.82") {
+    gradleToolingExtension.compileOnlyConfigurationName(group = "com.jetbrains.intellij.gradle", name = "gradle-tooling-extension", version = "latest.release") {
         exclude("org.jetbrains.intellij.deps", "gradle-api")
     }
 
     implementation(files(gradleToolingExtensionJar))
-}
 
-// Configure Gradle IntelliJ Plugin
-// Read more: https://plugins.jetbrains.com/docs/intellij/tools-gradle-intellij-plugin.html
-intellij {
-    version.set("2024.1")
-    type.set("IC") // Target IDE Platform
+    intellijPlatform {
+        intellijIdeaCommunity("2024.3.1")
 
-    plugins.set(listOf("gradle", "java"))
+        bundledPlugin("com.intellij.java")
+        bundledPlugin("com.intellij.gradle")
+    }
 }
 
 tasks {
@@ -57,11 +59,6 @@ tasks {
         kotlinOptions.jvmTarget = "11"
     }
 
-    patchPluginXml {
-        sinceBuild.set("241")
-        untilBuild.set("251.*")
-    }
-
     signPlugin {
         certificateChain.set(System.getenv("CERTIFICATE_CHAIN"))
         privateKey.set(System.getenv("PRIVATE_KEY"))
@@ -70,17 +67,5 @@ tasks {
 
     publishPlugin {
         token.set(System.getenv("PUBLISH_TOKEN"))
-    }
-}
-
-publishing {
-    publications {
-        create<MavenPublication>("maven") {
-            groupId = "com.jetbrains.plugins"
-            artifactId = "net.msrandom.java-virtual-sourcesets"
-            version = project.version.toString()
-
-            artifact(tasks.buildPlugin)
-        }
     }
 }
