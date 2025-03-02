@@ -1,10 +1,8 @@
 package net.msrandom.stubs
 
-import org.gradle.api.artifacts.Configuration
 import org.gradle.api.artifacts.component.ModuleComponentIdentifier
 import org.gradle.api.artifacts.component.ProjectComponentIdentifier
 import org.gradle.api.artifacts.result.ResolvedArtifactResult
-import org.gradle.api.file.FileCollection
 import org.objectweb.asm.ClassReader
 import org.objectweb.asm.ClassWriter
 import org.objectweb.asm.Opcodes
@@ -56,7 +54,12 @@ object StubGenerator {
         return a and VISIBILITY_MASK.inv() or visibility
     }
 
-    private fun findCommonSuper(nodeA: ClassNode, nodeB: ClassNode, classpathA: ClasspathLoader, classpathB: ClasspathLoader): String? {
+    private fun findCommonSuper(
+        nodeA: ClassNode,
+        nodeB: ClassNode,
+        classpathA: ClasspathLoader,
+        classpathB: ClasspathLoader
+    ): String? {
         var superNameA = nodeA.superName
         var superNameB = nodeB.superName
 
@@ -117,7 +120,7 @@ object StubGenerator {
         node.version = min(nodeA.version, nodeB.version)
         node.access = nodeA.access
         node.name = nodeA.name
-        node.signature = nodeA.signature
+        node.signature = nodeA.signature.commonPrefixWith(nodeB.signature)
 
         node.superName = findCommonSuper(nodeA, nodeB, classpathA, classpathB)
 
@@ -153,15 +156,20 @@ object StubGenerator {
             }
 
         node.methods =
-            nodeA.methods.mapNotNull { method ->
-                nodeB.methods.firstOrNull { it.name == method.name && it.desc == method.desc }?.let {
+            nodeA.methods.mapNotNull { methodA ->
+                nodeB.methods.firstOrNull { it.name == methodA.name && it.desc == methodA.desc }?.let { methodB ->
+                    // Should we use `visit` for supporting all the fields in the method node?
                     MethodNode(
-                        accessIntersection(it.access, method.access),
-                        it.name,
-                        it.desc,
-                        it.signature,
-                        it.exceptions.toTypedArray().intersect(method.exceptions.toSet()).toTypedArray(),
-                    )
+                        accessIntersection(methodB.access, methodA.access),
+                        methodB.name,
+                        methodB.desc,
+                        methodB.signature,
+                        methodB.exceptions.toTypedArray().intersect(methodA.exceptions.toSet()).toTypedArray(),
+                    ).also {
+                        methodA.annotationDefault?.run {
+                            it.annotationDefault = methodA.annotationDefault
+                        }
+                    }
                 }
             }
 
