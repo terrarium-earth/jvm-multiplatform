@@ -120,7 +120,7 @@ object StubGenerator {
         node.version = min(nodeA.version, nodeB.version)
         node.access = nodeA.access
         node.name = nodeA.name
-        node.signature = nodeA.signature.commonPrefixWith(nodeB.signature)
+        node.signature = nodeB.signature?.let { nodeA.signature?.commonPrefixWith(it) } ?: nodeA.signature
 
         node.superName = findCommonSuper(nodeA, nodeB, classpathA, classpathB)
 
