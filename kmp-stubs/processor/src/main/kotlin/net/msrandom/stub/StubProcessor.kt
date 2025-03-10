@@ -9,13 +9,7 @@ import com.google.devtools.ksp.processing.SymbolProcessor
 import com.google.devtools.ksp.processing.SymbolProcessorEnvironment
 import com.google.devtools.ksp.processing.SymbolProcessorProvider
 import com.google.devtools.ksp.symbol.*
-import com.squareup.kotlinpoet.AnnotationSpec
-import com.squareup.kotlinpoet.CodeBlock
-import com.squareup.kotlinpoet.FileSpec
-import com.squareup.kotlinpoet.FunSpec
-import com.squareup.kotlinpoet.KModifier
-import com.squareup.kotlinpoet.PropertySpec
-import com.squareup.kotlinpoet.TypeSpec
+import com.squareup.kotlinpoet.*
 import com.squareup.kotlinpoet.ksp.toClassName
 import com.squareup.kotlinpoet.ksp.toKModifier
 import com.squareup.kotlinpoet.ksp.toTypeName
@@ -25,6 +19,8 @@ import kotlin.sequences.map
 import kotlin.sequences.toList
 
 private typealias PackageStubInfo = Pair<FileSpec.Builder, MutableList<KSFile>>
+
+const val CANT_RUN_COMMON = "throw UnsupportedOperationException(\"\"\"\nCommon modules are not runnable\n\"\"\")"
 
 class StubProcessor(private val environment: SymbolProcessorEnvironment) : SymbolProcessor {
     private fun mapModifiers(modifiers: Iterable<Modifier>) = modifiers.mapNotNull {
@@ -105,33 +101,51 @@ class StubProcessor(private val environment: SymbolProcessorEnvironment) : Symbo
 
         typeBuilder.addAnnotations(mapAnnotations(type.annotations))
 
+        val isObject = type.classKind == ClassKind.OBJECT
+
         if (type.classKind == ClassKind.ENUM_CLASS) {
             for (declaration in type.declarations) {
                 typeBuilder.addEnumConstant(declaration.simpleName.asString())
             }
         } else {
-            typeBuilder.addFunctions(type.getDeclaredFunctions().map(::functionSpec).toList())
+            if(!isObject) typeBuilder.primaryConstructor(type.primaryConstructor?.let { functionSpec(it, true) })
+            typeBuilder.addFunctions(
+                type.getDeclaredFunctions()
+                    .run {
+                        if(isObject) {
+                            filterNot(KSFunctionDeclaration::isConstructor)
+                        } else {
+                            filterNot { it == type.primaryConstructor }
+                        }
+                    }
+                    .map(::functionSpec)
+                    .toList()
+            )
             typeBuilder.addProperties(type.getDeclaredProperties().map(::propertySpec).toList())
         }
 
-        typeBuilder.addSuperinterfaces(type.superTypes.map(KSTypeReference::toTypeName).toList())
+        typeBuilder.addSuperinterfaces(type.superTypes.map(KSTypeReference::toTypeName).filterNot { it.toString().endsWith("Any") }.toList())
 
         spec.addType(typeBuilder.build())
     }
 
-    private fun functionSpec(function: KSFunctionDeclaration): FunSpec {
+    private fun functionSpec(function: KSFunctionDeclaration, primaryConstructor: Boolean = false): FunSpec {
         val builder = if (function.isConstructor()) {
             FunSpec.constructorBuilder()
         } else {
             val builder = FunSpec.builder(function.simpleName.asString())
-                .addCode("return TODO(\"Common modules are not runnable\")")
+                .addCode("return $CANT_RUN_COMMON")
 
             function.returnType?.toTypeName()?.let(builder::returns)
-
             builder
         }
 
-        builder.addModifiers(mapModifiers(function.modifiers))
+        // Adding modifiers to primary constructor results in `public public constructor(...)`
+        if(!primaryConstructor) {
+            function.extensionReceiver?.toTypeName()?.let(builder::receiver)
+            builder.addModifiers(mapModifiers(function.modifiers))
+        }
+
         builder.addAnnotations(mapAnnotations(function.annotations))
 
         for (parameter in function.parameters) {
@@ -150,10 +164,24 @@ class StubProcessor(private val environment: SymbolProcessorEnvironment) : Symbo
 
         builder.addAnnotations(mapAnnotations(property.annotations))
 
-        builder.receiver(property.extensionReceiver?.toTypeName())
+        val receiver = property.extensionReceiver
+        builder.receiver(receiver?.toTypeName())
         builder.mutable(property.isMutable)
 
-        builder.initializer("TODO(\"Common modules are not runnable\")")
+        if(receiver != null) {
+            val getBuilder = FunSpec.getterBuilder()
+            getBuilder.addCode("return $CANT_RUN_COMMON")
+            builder.getter(getBuilder.build())
+
+            if(property.isMutable) {
+                val setBuilder = FunSpec.setterBuilder()
+                setBuilder.parameters.add(ParameterSpec.builder("value", property.type.toTypeName()).build())
+                setBuilder.addCode("return $CANT_RUN_COMMON")
+                builder.setter(setBuilder.build())
+            }
+        } else {
+            builder.initializer(CANT_RUN_COMMON)
+        }
 
         return builder.build()
     }
@@ -177,7 +205,7 @@ class StubProcessor(private val environment: SymbolProcessorEnvironment) : Symbo
     }
 
     override fun process(resolver: Resolver): List<KSAnnotated> {
-        val toStub = resolver.getSymbolsWithAnnotation(Stub::class.java.name)
+        val toStub = resolver.getSymbolsWithAnnotation(Stub::class.qualifiedName!!)
 
         val declarations = hashMapOf<KSName, PackageStubInfo>()
 
