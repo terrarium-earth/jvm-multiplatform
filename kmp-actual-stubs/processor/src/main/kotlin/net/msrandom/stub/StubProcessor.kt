@@ -108,11 +108,14 @@ class StubProcessor(private val environment: SymbolProcessorEnvironment) : Symbo
                 typeBuilder.addEnumConstant(declaration.simpleName.asString())
             }
         } else {
-            if(!isObject) typeBuilder.primaryConstructor(type.primaryConstructor?.let { functionSpec(it, true) })
+            if (!isObject) {
+                typeBuilder.primaryConstructor(type.primaryConstructor?.let { functionSpec(it, true) })
+            }
+
             typeBuilder.addFunctions(
                 type.getDeclaredFunctions()
                     .run {
-                        if(isObject) {
+                        if (isObject) {
                             filterNot(KSFunctionDeclaration::isConstructor)
                         } else {
                             filterNot { it == type.primaryConstructor }
@@ -121,10 +124,14 @@ class StubProcessor(private val environment: SymbolProcessorEnvironment) : Symbo
                     .map(::functionSpec)
                     .toList()
             )
+
             typeBuilder.addProperties(type.getDeclaredProperties().map(::propertySpec).toList())
         }
 
-        typeBuilder.addSuperinterfaces(type.superTypes.map(KSTypeReference::toTypeName).filterNot { it.toString().endsWith("Any") }.toList())
+        // TODO Use Any::class.qualifiedName
+        typeBuilder.addSuperinterfaces(
+            type.superTypes.map(KSTypeReference::toTypeName).filterNot { it.toString().endsWith("Any") }.toList()
+        )
 
         spec.addType(typeBuilder.build())
     }
@@ -141,7 +148,7 @@ class StubProcessor(private val environment: SymbolProcessorEnvironment) : Symbo
         }
 
         // Adding modifiers to primary constructor results in `public public constructor(...)`
-        if(!primaryConstructor) {
+        if (!primaryConstructor) {
             function.extensionReceiver?.toTypeName()?.let(builder::receiver)
             builder.addModifiers(mapModifiers(function.modifiers))
         }
@@ -168,12 +175,12 @@ class StubProcessor(private val environment: SymbolProcessorEnvironment) : Symbo
         builder.receiver(receiver?.toTypeName())
         builder.mutable(property.isMutable)
 
-        if(receiver != null) {
+        if (receiver != null) {
             val getBuilder = FunSpec.getterBuilder()
             getBuilder.addCode("return $CANT_RUN_COMMON")
             builder.getter(getBuilder.build())
 
-            if(property.isMutable) {
+            if (property.isMutable) {
                 val setBuilder = FunSpec.setterBuilder()
                 setBuilder.parameters.add(ParameterSpec.builder("value", property.type.toTypeName()).build())
                 setBuilder.addCode("return $CANT_RUN_COMMON")

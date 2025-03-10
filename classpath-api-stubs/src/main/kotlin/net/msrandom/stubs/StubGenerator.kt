@@ -10,6 +10,7 @@ import org.objectweb.asm.tree.ClassNode
 import org.objectweb.asm.tree.FieldNode
 import org.objectweb.asm.tree.InnerClassNode
 import org.objectweb.asm.tree.MethodNode
+import java.io.Closeable
 import java.io.File
 import java.net.URI
 import java.net.URLClassLoader
