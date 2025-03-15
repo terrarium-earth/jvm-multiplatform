@@ -20,7 +20,7 @@ dependencies {
     implementation("com.squareup:kotlinpoet:1.11.0")
     implementation("com.squareup:kotlinpoet-ksp:1.12.0")
 
-    implementation(projects.kmpStubAnnotations)
+    implementation(projects.kmpActualStubAnnotations)
 }
 
 publishing {
