@@ -204,8 +204,8 @@ class StubProcessor(private val environment: SymbolProcessorEnvironment) : Symbo
     override fun process(resolver: Resolver): List<KSAnnotated> {
         val directory = environment.options["actualStubDir"]
 
-        require(directory != null) {
-            "StubProcessor requires the option actualStubDir"
+        if (directory == null) {
+            return emptyList()
         }
 
         val directoryPath = Path(directory)
