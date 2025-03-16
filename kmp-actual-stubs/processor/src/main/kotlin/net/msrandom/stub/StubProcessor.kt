@@ -60,7 +60,7 @@ class StubProcessor(private val environment: SymbolProcessorEnvironment) : Symbo
         val info = declarations.computeIfAbsent(declaration.packageName) {
             val spec = FileSpec.builder(
                 declaration.packageName.asString(),
-                declaration.packageName.asString().replace('.', '-') + ".kt"
+                declaration.packageName.asString().replace('.', '-'),
             )
 
             spec
@@ -208,6 +208,8 @@ class StubProcessor(private val environment: SymbolProcessorEnvironment) : Symbo
             "StubProcessor requires the option actualStubDir"
         }
 
+        val directoryPath = Path(directory)
+
         val toStub = resolver.getSymbolsWithAnnotation(Stub::class.qualifiedName!!)
 
         val declarations = hashMapOf<KSName, FileSpec.Builder>()
@@ -224,7 +226,7 @@ class StubProcessor(private val environment: SymbolProcessorEnvironment) : Symbo
         for (specBuilder in declarations.values) {
             val spec = specBuilder.build()
 
-            spec.writeTo(Path(directory))
+            spec.writeTo(directoryPath)
         }
 
         return emptyList()

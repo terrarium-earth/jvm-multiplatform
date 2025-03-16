@@ -24,6 +24,7 @@ import org.jetbrains.kotlin.gradle.InternalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.dsl.KotlinJvmExtension
 import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 import org.jetbrains.kotlin.gradle.plugin.KotlinSourceSet
+import org.jetbrains.kotlin.gradle.plugin.KotlinSourceSetContainer
 import org.jetbrains.kotlin.gradle.plugin.SubpluginOption
 import org.jetbrains.kotlin.gradle.tasks.K2MultiplatformStructure
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
@@ -88,7 +89,15 @@ open class JavaVirtualSourceSetsPlugin @Inject constructor(private val modelBuil
         val kspTaskName = compilation.compileKotlinTaskName.replace("compile", "ksp")
 
         val stubsDirectory = buildDirectory.dir("generated").map {
-            it.dir("ksp").dir(kotlin.target.name).dir(name).dir("stubs")
+            val ksp = it.dir("ksp")
+
+            val targetDirectory = if (kotlin.target.name.isEmpty()) {
+                ksp
+            } else {
+                ksp.dir(kotlin.target.name)
+            }
+
+            targetDirectory.dir(name).dir("stubs")
         }
 
         fun configureTask(compileTask: KotlinCompile) {
@@ -105,18 +114,17 @@ open class JavaVirtualSourceSetsPlugin @Inject constructor(private val modelBuil
             }
 
             compileTask.addK2Argument(compileTask.multiplatformStructure.refinesEdges) {
-                K2MultiplatformStructure.RefinesEdge(kotlinSourceSet.name, "stub-implementation")
+                K2MultiplatformStructure.RefinesEdge("stub-implementation", kotlinSourceSet.name)
             }
 
-            commonSourceSet.get(compileTask).from(stubsDirectory)
+            commonSourceSet.get(compileTask).from(kotlinSourceSet.kotlin.srcDirTrees)
             compileTask.source(stubsDirectory)
         }
 
         taskContainer.withType(KspTaskJvm::class.java).named(kspTaskName::equals).all {
-            println("${it.name}")
             // Ksp task exists, setup stub directory to be used if needed
 
-            it.options.add(SubpluginOption("actualStubDir", lazy { stubsDirectory.get().toString() }))
+            it.options.add(SubpluginOption("apoption", lazy { "actualStubDir=${stubsDirectory.get()}" }))
 
             configureTask(it)
         }
@@ -124,17 +132,18 @@ open class JavaVirtualSourceSetsPlugin @Inject constructor(private val modelBuil
         compilation.compileTaskProvider.configure {
             configureTask(it as KotlinCompile)
         }
+
+        extensions.getByType(SourceSetStaticLinkageInfo::class.java).links.all {
+            it.setupKotlinStubs(kotlin, taskContainer, buildDirectory, fileOperations)
+        }
     }
 
     private fun SourceSet.addKotlinCommonSources(
-        kotlin: KotlinJvmExtension,
+        kotlin: KotlinSourceSetContainer,
         providerFactory: ProviderFactory,
         dependency: SourceSet,
         info: SourceSetStaticLinkageInfo,
         compileTask: KotlinCompile,
-        taskContainer: TaskContainer,
-        buildDirectory: DirectoryProperty,
-        fileOperations: FileOperations,
     ) {
         val kotlinSourceSet = kotlin.sourceSets.getByName(name)
         val kotlinDependency = kotlin.sourceSets.getByName(dependency.name)
@@ -176,9 +185,7 @@ open class JavaVirtualSourceSetsPlugin @Inject constructor(private val modelBuil
         compileTask.source(kotlinDependency.kotlin)
 
         dependency.extensions.getByType(SourceSetStaticLinkageInfo::class.java).links.all {
-            it.setupKotlinStubs(kotlin, taskContainer, buildDirectory, fileOperations)
-
-            dependency.addKotlinCommonSources(kotlin, providerFactory, it, info, compileTask, taskContainer, buildDirectory, fileOperations)
+            dependency.addKotlinCommonSources(kotlin, providerFactory, it, info, compileTask)
         }
     }
 
@@ -206,12 +213,14 @@ open class JavaVirtualSourceSetsPlugin @Inject constructor(private val modelBuil
             val kotlin = project.extensions.getByType(KotlinJvmExtension::class.java)
             val kotlinCompilation = kotlin.target.compilations.getByName(name)
 
+            dependency.setupKotlinStubs(kotlin, project.tasks, project.layout.buildDirectory, project.serviceOf())
+
             kotlinCompilation.compileTaskProvider.configure {
                 it as KotlinCompile
 
                 it.multiPlatformEnabled.set(true)
 
-                addKotlinCommonSources(kotlin, project.serviceOf(), dependency, info, it, project.tasks, project.layout.buildDirectory, project.serviceOf())
+                addKotlinCommonSources(kotlin, project.serviceOf(), dependency, info, it)
             }
         }
     }
@@ -221,7 +230,12 @@ open class JavaVirtualSourceSetsPlugin @Inject constructor(private val modelBuil
 
         target.extensions.getByType(SourceSetContainer::class.java).all { sourceSet ->
             val staticLinkInfo =
-                sourceSet.extensions.create("staticLinkage", SourceSetStaticLinkageInfo::class.java, sourceSet, target.objects)
+                sourceSet.extensions.create(
+                    "staticLinkage",
+                    SourceSetStaticLinkageInfo::class.java,
+                    sourceSet,
+                    target.objects
+                )
 
             staticLinkInfo.links.all { dependency ->
                 sourceSet.addDependency(dependency, staticLinkInfo, target)
