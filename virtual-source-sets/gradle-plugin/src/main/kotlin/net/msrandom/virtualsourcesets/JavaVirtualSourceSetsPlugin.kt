@@ -1,21 +1,30 @@
+@file:OptIn(InternalKotlinGradlePluginApi::class)
+
 package net.msrandom.virtualsourcesets
 
+import com.google.devtools.ksp.gradle.KspTaskJvm
 import net.msrandom.virtualsourcesets.model.VirtualSourceSetModelBuilder
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.file.ConfigurableFileCollection
+import org.gradle.api.file.DirectoryProperty
+import org.gradle.api.internal.file.FileOperations
 import org.gradle.api.plugins.JavaPlugin
 import org.gradle.api.provider.HasMultipleValues
 import org.gradle.api.provider.Provider
+import org.gradle.api.provider.ProviderFactory
 import org.gradle.api.tasks.SourceSet
 import org.gradle.api.tasks.SourceSetContainer
+import org.gradle.api.tasks.TaskContainer
 import org.gradle.api.tasks.compile.JavaCompile
+import org.gradle.internal.extensions.core.serviceOf
 import org.gradle.language.jvm.tasks.ProcessResources
 import org.gradle.tooling.provider.model.ToolingModelBuilderRegistry
 import org.jetbrains.kotlin.gradle.InternalKotlinGradlePluginApi
-import org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension
+import org.jetbrains.kotlin.gradle.dsl.KotlinJvmExtension
 import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 import org.jetbrains.kotlin.gradle.plugin.KotlinSourceSet
+import org.jetbrains.kotlin.gradle.plugin.SubpluginOption
 import org.jetbrains.kotlin.gradle.tasks.K2MultiplatformStructure
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import javax.inject.Inject
@@ -30,6 +39,21 @@ private val commonSourceSet = KotlinCompile::class.memberProperties
     .apply { isAccessible = true } as KProperty1<KotlinCompile, ConfigurableFileCollection>
 
 private const val KOTLIN_JVM = "org.jetbrains.kotlin.jvm"
+
+private val KotlinCompile.isK2: Provider<Boolean>
+    get() = compilerOptions.languageVersion
+        .orElse(KotlinVersion.DEFAULT)
+        .map { it >= KotlinVersion.KOTLIN_2_0 }
+
+fun <T> KotlinCompile.addK2Argument(property: HasMultipleValues<T>, value: () -> T) {
+    property.addAll(isK2.map {
+        if (it) {
+            listOf(value())
+        } else {
+            emptyList()
+        }
+    })
+}
 
 @Suppress("unused")
 open class JavaVirtualSourceSetsPlugin @Inject constructor(private val modelBuilderRegistry: ToolingModelBuilderRegistry) :
@@ -54,52 +78,89 @@ open class JavaVirtualSourceSetsPlugin @Inject constructor(private val modelBuil
         }
     }
 
-    @OptIn(InternalKotlinGradlePluginApi::class)
+    private fun SourceSet.setupKotlinStubs(
+        kotlin: KotlinJvmExtension,
+        taskContainer: TaskContainer,
+        buildDirectory: DirectoryProperty,
+        fileOperations: FileOperations,
+    ) {
+        val compilation = kotlin.target.compilations.getByName(name)
+        val kspTaskName = compilation.compileKotlinTaskName.replace("compile", "ksp")
+
+        val stubsDirectory = buildDirectory.dir("generated").map {
+            it.dir("ksp").dir(kotlin.target.name).dir(name).dir("stubs")
+        }
+
+        fun configureTask(compileTask: KotlinCompile) {
+            compileTask.multiPlatformEnabled.set(true)
+
+            val kotlinSourceSet = kotlin.sourceSets.getByName(name)
+
+            compileTask.addK2Argument(compileTask.multiplatformStructure.fragments) {
+                K2MultiplatformStructure.Fragment(kotlinSourceSet.name, kotlinSourceSet.kotlin.asFileTree)
+            }
+
+            compileTask.addK2Argument(compileTask.multiplatformStructure.fragments) {
+                K2MultiplatformStructure.Fragment("stub-implementation", fileOperations.fileTree(stubsDirectory))
+            }
+
+            compileTask.addK2Argument(compileTask.multiplatformStructure.refinesEdges) {
+                K2MultiplatformStructure.RefinesEdge(kotlinSourceSet.name, "stub-implementation")
+            }
+
+            commonSourceSet.get(compileTask).from(stubsDirectory)
+            compileTask.source(stubsDirectory)
+        }
+
+        taskContainer.withType(KspTaskJvm::class.java).named(kspTaskName::equals).all {
+            println("${it.name}")
+            // Ksp task exists, setup stub directory to be used if needed
+
+            it.options.add(SubpluginOption("actualStubDir", lazy { stubsDirectory.get().toString() }))
+
+            configureTask(it)
+        }
+
+        compilation.compileTaskProvider.configure {
+            configureTask(it as KotlinCompile)
+        }
+    }
+
     private fun SourceSet.addKotlinCommonSources(
-        kotlin: KotlinJvmProjectExtension,
+        kotlin: KotlinJvmExtension,
+        providerFactory: ProviderFactory,
         dependency: SourceSet,
         info: SourceSetStaticLinkageInfo,
         compileTask: KotlinCompile,
+        taskContainer: TaskContainer,
+        buildDirectory: DirectoryProperty,
+        fileOperations: FileOperations,
     ) {
         val kotlinSourceSet = kotlin.sourceSets.getByName(name)
         val kotlinDependency = kotlin.sourceSets.getByName(dependency.name)
-
-        val isK2 = compileTask.compilerOptions.languageVersion
-            .orElse(KotlinVersion.DEFAULT)
-            .map { it >= KotlinVersion.KOTLIN_2_0 }
-
-        fun <T> addK2Argument(property: HasMultipleValues<T>, value: () -> T) {
-            property.addAll(isK2.map {
-                if (it) {
-                    listOf(value())
-                } else {
-                    emptyList()
-                }
-            })
-        }
 
         fun addFragment(sourceSet: KotlinSourceSet) {
             if (compileTask.multiplatformStructure.fragments.get().any { it.fragmentName == sourceSet.name }) {
                 return
             }
 
-            addK2Argument(compileTask.multiplatformStructure.fragments) {
+            compileTask.addK2Argument(compileTask.multiplatformStructure.fragments) {
                 K2MultiplatformStructure.Fragment(sourceSet.name, sourceSet.kotlin.asFileTree)
             }
         }
 
-        addK2Argument(compileTask.multiplatformStructure.refinesEdges) {
+        compileTask.addK2Argument(compileTask.multiplatformStructure.refinesEdges) {
             K2MultiplatformStructure.RefinesEdge(kotlinSourceSet.name, kotlinDependency.name)
         }
 
         addFragment(kotlinSourceSet)
         addFragment(kotlinDependency)
 
-        val emptyList: Provider<List<K2MultiplatformStructure.RefinesEdge>> = kotlin.project.provider { emptyList() }
+        val emptyList: Provider<List<K2MultiplatformStructure.RefinesEdge>> = providerFactory.provider { emptyList() }
 
         val weakLinks = info.weakTreeLinks(dependency)
 
-        compileTask.multiplatformStructure.refinesEdges.addAll(isK2.flatMap {
+        compileTask.multiplatformStructure.refinesEdges.addAll(compileTask.isK2.flatMap {
             if (it) {
                 weakLinks.map {
                     it.map { to ->
@@ -115,7 +176,9 @@ open class JavaVirtualSourceSetsPlugin @Inject constructor(private val modelBuil
         compileTask.source(kotlinDependency.kotlin)
 
         dependency.extensions.getByType(SourceSetStaticLinkageInfo::class.java).links.all {
-            dependency.addKotlinCommonSources(kotlin, it, info, compileTask)
+            it.setupKotlinStubs(kotlin, taskContainer, buildDirectory, fileOperations)
+
+            dependency.addKotlinCommonSources(kotlin, providerFactory, it, info, compileTask, taskContainer, buildDirectory, fileOperations)
         }
     }
 
@@ -140,13 +203,15 @@ open class JavaVirtualSourceSetsPlugin @Inject constructor(private val modelBuil
         }
 
         project.plugins.withId(KOTLIN_JVM) {
-            val kotlin = project.extensions.getByType(KotlinJvmProjectExtension::class.java)
+            val kotlin = project.extensions.getByType(KotlinJvmExtension::class.java)
             val kotlinCompilation = kotlin.target.compilations.getByName(name)
 
-            project.tasks.named(kotlinCompilation.compileKotlinTaskName, KotlinCompile::class.java) {
+            kotlinCompilation.compileTaskProvider.configure {
+                it as KotlinCompile
+
                 it.multiPlatformEnabled.set(true)
 
-                addKotlinCommonSources(kotlin, dependency, info, it)
+                addKotlinCommonSources(kotlin, project.serviceOf(), dependency, info, it, project.tasks, project.layout.buildDirectory, project.serviceOf())
             }
         }
     }

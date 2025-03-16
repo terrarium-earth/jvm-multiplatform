@@ -1,5 +1,6 @@
 package net.msrandom.multiplatform.bootstrap
 
+import com.google.auto.service.AutoService
 import net.msrandom.multiplatform.annotations.Actual
 import net.msrandom.multiplatform.annotations.Expect
 import net.msrandom.multiplatform.java8.Java8PlatformHelper

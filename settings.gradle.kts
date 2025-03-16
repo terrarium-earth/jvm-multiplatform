@@ -8,8 +8,8 @@ fun includeSubproject(name: String, path: String) {
     project(":$name").projectDir = file(path)
 }
 
-includeSubproject("java-virtual-source-sets-idea", "virtual-source-sets/idea-plugin")
-includeSubproject("java-virtual-source-sets", "virtual-source-sets/gradle-plugin")
+includeSubproject("jvm-virtual-source-sets-idea", "virtual-source-sets/idea-plugin")
+includeSubproject("jvm-virtual-source-sets", "virtual-source-sets/gradle-plugin")
 
 includeSubproject("java-expect-actual-idea", "java-expect-actual/idea-plugin")
 includeSubproject("java-expect-actual-annotations", "java-expect-actual/annotations")

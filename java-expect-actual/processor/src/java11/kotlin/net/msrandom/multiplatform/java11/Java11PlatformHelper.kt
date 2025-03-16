@@ -1,5 +1,6 @@
 package net.msrandom.multiplatform.java11
 
+import com.google.auto.service.AutoService
 import net.msrandom.multiplatform.bootstrap.ElementRemover
 import net.msrandom.multiplatform.bootstrap.PlatformHelper
 import sun.misc.Unsafe

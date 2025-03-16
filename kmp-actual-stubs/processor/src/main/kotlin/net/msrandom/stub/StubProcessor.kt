@@ -13,12 +13,8 @@ import com.squareup.kotlinpoet.*
 import com.squareup.kotlinpoet.ksp.toClassName
 import com.squareup.kotlinpoet.ksp.toKModifier
 import com.squareup.kotlinpoet.ksp.toTypeName
-import com.squareup.kotlinpoet.ksp.writeTo
+import kotlin.io.path.Path
 import kotlin.reflect.KClass
-import kotlin.sequences.map
-import kotlin.sequences.toList
-
-private typealias PackageStubInfo = Pair<FileSpec.Builder, MutableList<KSFile>>
 
 const val CANT_RUN_COMMON = "throw UnsupportedOperationException(\"\"\"\nCommon modules are not runnable\n\"\"\")"
 
@@ -51,7 +47,7 @@ class StubProcessor(private val environment: SymbolProcessorEnvironment) : Symbo
 
     private fun fileSpec(
         declaration: KSDeclaration,
-        declarations: MutableMap<KSName, PackageStubInfo>
+        declarations: MutableMap<KSName, FileSpec.Builder>,
     ): FileSpec.Builder? {
         if (Modifier.ACTUAL in declaration.modifiers) {
             return null
@@ -61,13 +57,13 @@ class StubProcessor(private val environment: SymbolProcessorEnvironment) : Symbo
             throw UnsupportedOperationException("Only expect members can be @Stub, but $declaration is not expect")
         }
 
-        val (info, dependencyFiles) = declarations.computeIfAbsent(declaration.packageName) {
+        val info = declarations.computeIfAbsent(declaration.packageName) {
             val spec = FileSpec.builder(
                 declaration.packageName.asString(),
                 declaration.packageName.asString().replace('.', '-') + ".kt"
             )
 
-            spec to mutableListOf()
+            spec
         }
 
         var inFileDeclaration: KSDeclaration? = declaration
@@ -76,16 +72,10 @@ class StubProcessor(private val environment: SymbolProcessorEnvironment) : Symbo
             inFileDeclaration = inFileDeclaration.parentDeclaration
         }
 
-        val containingFile = inFileDeclaration?.containingFile
-
-        if (containingFile != null) {
-            dependencyFiles.add(containingFile)
-        }
-
         return info
     }
 
-    private fun generate(type: KSClassDeclaration, declarations: MutableMap<KSName, PackageStubInfo>) {
+    private fun generate(type: KSClassDeclaration, declarations: MutableMap<KSName, FileSpec.Builder>) {
         val spec = fileSpec(type, declarations) ?: return
 
         val typeBuilder = when (type.classKind) {
@@ -195,7 +185,7 @@ class StubProcessor(private val environment: SymbolProcessorEnvironment) : Symbo
 
     private fun generate(
         function: KSFunctionDeclaration,
-        declarations: MutableMap<KSName, PackageStubInfo>
+        declarations: MutableMap<KSName, FileSpec.Builder>,
     ) {
         val spec = fileSpec(function, declarations) ?: return
 
@@ -204,7 +194,7 @@ class StubProcessor(private val environment: SymbolProcessorEnvironment) : Symbo
 
     private fun generate(
         property: KSPropertyDeclaration,
-        declarations: MutableMap<KSName, PackageStubInfo>
+        declarations: MutableMap<KSName, FileSpec.Builder>,
     ) {
         val spec = fileSpec(property, declarations) ?: return
 
@@ -212,9 +202,15 @@ class StubProcessor(private val environment: SymbolProcessorEnvironment) : Symbo
     }
 
     override fun process(resolver: Resolver): List<KSAnnotated> {
+        val directory = environment.options["actualStubDir"]
+
+        require(directory != null) {
+            "StubProcessor requires the option actualStubDir"
+        }
+
         val toStub = resolver.getSymbolsWithAnnotation(Stub::class.qualifiedName!!)
 
-        val declarations = hashMapOf<KSName, PackageStubInfo>()
+        val declarations = hashMapOf<KSName, FileSpec.Builder>()
 
         for (annotated in toStub) {
             when (annotated) {
@@ -225,14 +221,17 @@ class StubProcessor(private val environment: SymbolProcessorEnvironment) : Symbo
             }
         }
 
-        for ((spec, files) in declarations.values) {
-            spec.build().writeTo(environment.codeGenerator, false, files)
+        for (specBuilder in declarations.values) {
+            val spec = specBuilder.build()
+
+            spec.writeTo(Path(directory))
         }
 
         return emptyList()
     }
 }
 
+@Suppress("unused")
 @AutoService(SymbolProcessorProvider::class)
 class StubProcessorProvider : SymbolProcessorProvider {
     override fun create(environment: SymbolProcessorEnvironment) =

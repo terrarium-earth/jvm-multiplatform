@@ -19,7 +19,7 @@ dependencies {
 
     bundledPlugin("com.intellij.java")
     bundledPlugin("com.intellij.gradle")
-    localPlugin(projects.javaVirtualSourceSetsIdea)
+    localPlugin(projects.jvmVirtualSourceSetsIdea)
   }
 }
 

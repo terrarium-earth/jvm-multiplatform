@@ -5,6 +5,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
     kotlin("jvm")
+    id("com.google.devtools.ksp")
     `maven-publish`
 }
 
@@ -32,7 +33,7 @@ dependencies {
         Jvm.discovered(
             it.installationPath.asFile,
             null,
-            JavaVersion.toVersion(it.languageVersion.asInt())
+            it.languageVersion.asInt()
         )
     }
 
@@ -60,6 +61,11 @@ java {
 
 dependencies {
     java11.implementationConfigurationName(projects.javaExpectActualAnnotations)
+
+    ksp(group = "dev.zacsweers.autoservice", name = "auto-service-ksp", version = "1.2.0")
+
+    compileOnly(group = "com.google.auto.service", name = "auto-service-annotations", version = "1.1.1")
+    java11.compileOnlyConfigurationName(group = "com.google.auto.service", name = "auto-service-annotations", version = "1.1.1")
 }
 
 configurations.named(java11.apiElementsConfigurationName) {
