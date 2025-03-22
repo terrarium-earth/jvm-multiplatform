@@ -101,6 +101,10 @@ open class JavaVirtualSourceSetsPlugin @Inject constructor(private val modelBuil
         }
 
         fun configureTask(compileTask: KotlinCompile) {
+            if (compileTask.multiplatformStructure.fragments.get().any { it.fragmentName == name }) {
+                return
+            }
+
             compileTask.multiPlatformEnabled.set(true)
 
             val kotlinSourceSet = kotlin.sourceSets.getByName(name)
