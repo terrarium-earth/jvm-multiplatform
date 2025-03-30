@@ -251,7 +251,9 @@ object StubGenerator {
         )
 
         val classpaths = classpaths.map {
-            val artifacts = it.artifacts.get().filter { it.id !is ProjectComponentIdentifier }
+            val artifacts = it.artifacts.get()
+
+            assert(artifacts.none { it is ProjectComponentIdentifier })
 
             val (excluded, included) = artifacts.partition {
                 val id = it.id.componentIdentifier
