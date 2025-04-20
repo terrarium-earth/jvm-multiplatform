@@ -3,11 +3,12 @@ package net.msrandom.classextensions.kotlin.plugin
 import org.jetbrains.kotlin.fir.FirSession
 import org.jetbrains.kotlin.fir.declarations.FirClassLikeDeclaration
 import org.jetbrains.kotlin.fir.extensions.FirSupertypeGenerationExtension
-import org.jetbrains.kotlin.fir.extensions.buildUserTypeFromQualifierParts
+import org.jetbrains.kotlin.fir.lightTree.converter.LightTreeRawFirDeclarationBuilder
+import org.jetbrains.kotlin.fir.scopes.kotlinScopeProvider
 import org.jetbrains.kotlin.fir.symbols.impl.FirClassSymbol
 import org.jetbrains.kotlin.fir.types.ConeKotlinType
 import org.jetbrains.kotlin.fir.types.FirResolvedTypeRef
-import org.jetbrains.kotlin.name.Name
+import org.jetbrains.kotlin.fir.types.FirUserTypeRef
 
 class ClassExtensionFirSupertypes(session: FirSession, extensionFinder: LazyExtensionFinder) :
     FirSupertypeGenerationExtension(session) {
@@ -16,7 +17,7 @@ class ClassExtensionFirSupertypes(session: FirSession, extensionFinder: LazyExte
     override fun computeAdditionalSupertypes(
         classLikeDeclaration: FirClassLikeDeclaration,
         resolvedSupertypes: List<FirResolvedTypeRef>,
-        typeResolver: TypeResolveService
+        typeResolver: TypeResolveService,
     ): List<ConeKotlinType> {
         val symbol = classLikeDeclaration.symbol
 
@@ -24,19 +25,22 @@ class ClassExtensionFirSupertypes(session: FirSession, extensionFinder: LazyExte
             return emptyList()
         }
 
-        val newSuperTypes = resolver.getExtensions(symbol).flatMap { it.superList }.toList()
+        val newSuperTypes = resolver.getExtensions(symbol).flatMap { extension ->
+            extension.info.superList.map {
+                extension to it
+            }
+        }.toList()
 
-        return newSuperTypes.mapNotNull {
-            val type = typeResolver.resolveUserType(buildUserTypeFromQualifierParts(false) {
-                part(Name.identifier(it))
-            })
+        return newSuperTypes.mapNotNull { (extension, node) ->
+            val builder = LightTreeRawFirDeclarationBuilder(session, session.kotlinScopeProvider, extension.info.treeStructure)
 
-            type.takeUnless { it.coneType in resolvedSupertypes.map { it.coneType } }?.coneType
+            resolver.resolveUserType(extension.scope, builder.convertType(node) as FirUserTypeRef)
+                .takeUnless { it.coneType in resolvedSupertypes.map { it.coneType } }?.coneType
         }
     }
 
     override fun needTransformSupertypes(declaration: FirClassLikeDeclaration): Boolean {
         return declaration.symbol is FirClassSymbol<*> && resolver.getExtensions(declaration.symbol as FirClassSymbol<*>)
-            .any { it.superList.isNotEmpty() }
+            .any { extension -> extension.info.superList.isNotEmpty() }
     }
 }

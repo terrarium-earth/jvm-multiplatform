@@ -14,7 +14,9 @@ class ClassExtensionsPlugin : Plugin<Project>, KotlinCompilerPluginSupportPlugin
 
     override fun getCompilerPluginId() = "kotlin-class-extensions"
 
-    override fun getPluginArtifact() = SubpluginArtifact("net.msrandom", "kotlin-class-extensions-plugin", "1.0.8")
+    override fun getPluginArtifact() = SubpluginArtifact("net.msrandom", "kotlin-class-extensions-plugin", "1.0.10")
 
-    override fun isApplicable(kotlinCompilation: KotlinCompilation<*>) = true
+    override fun isApplicable(kotlinCompilation: KotlinCompilation<*>) = kotlinCompilation.allKotlinSourceSets.any {
+        it.dependsOn.isNotEmpty()
+    }
 }
