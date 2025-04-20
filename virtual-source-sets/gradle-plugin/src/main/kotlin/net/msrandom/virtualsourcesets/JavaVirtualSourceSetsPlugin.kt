@@ -199,12 +199,6 @@ open class JavaVirtualSourceSetsPlugin @Inject constructor(private val modelBuil
             compileClasspath += dependency.output
         }
 
-        project.extend(apiConfigurationName, dependency.apiConfigurationName)
-        project.extend(compileOnlyApiConfigurationName, dependency.compileOnlyApiConfigurationName)
-        project.extend(implementationConfigurationName, dependency.implementationConfigurationName)
-        project.extend(runtimeOnlyConfigurationName, dependency.runtimeOnlyConfigurationName)
-        project.extend(compileOnlyConfigurationName, dependency.compileOnlyConfigurationName)
-
         project.tasks.named(compileJavaTaskName, JavaCompile::class.java) {
             addJavaCommonSources(dependency, it)
         }
@@ -216,6 +210,10 @@ open class JavaVirtualSourceSetsPlugin @Inject constructor(private val modelBuil
         project.plugins.withId(KOTLIN_JVM) {
             val kotlin = project.extensions.getByType(KotlinJvmExtension::class.java)
             val kotlinCompilation = kotlin.target.compilations.getByName(name)
+
+            for (sourceSet in kotlinCompilation.allKotlinSourceSets) {
+                sourceSet.dependsOn(kotlin.sourceSets.getByName(dependency.name))
+            }
 
             dependency.setupKotlinStubs(kotlin, project.tasks, project.layout.buildDirectory, project.serviceOf())
 
