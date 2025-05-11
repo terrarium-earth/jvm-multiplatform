@@ -211,8 +211,6 @@ open class JavaVirtualSourceSetsPlugin @Inject constructor(private val modelBuil
             val kotlin = project.extensions.getByType(KotlinJvmExtension::class.java)
             val kotlinCompilation = kotlin.target.compilations.getByName(name)
 
-            kotlinCompilation.defaultSourceSet.dependsOn(kotlin.sourceSets.getByName(dependency.name))
-
             dependency.setupKotlinStubs(kotlin, project.tasks, project.layout.buildDirectory, project.serviceOf())
 
             kotlinCompilation.compileTaskProvider.configure {
