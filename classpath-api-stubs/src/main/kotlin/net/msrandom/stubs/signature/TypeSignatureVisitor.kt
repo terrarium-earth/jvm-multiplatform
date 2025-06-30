@@ -1,5 +1,6 @@
 package net.msrandom.stubs.signature
 
+import org.objectweb.asm.Opcodes
 import org.objectweb.asm.signature.SignatureReader
 import org.objectweb.asm.signature.SignatureVisitor
 
@@ -12,15 +13,15 @@ class TypeSignatureVisitor(api: Int, private val callback: (TypeSignature) -> Un
     private var typeArguments = mutableListOf<TypeArgument>()
 
     override fun visitBaseType(descriptor: Char) {
-        callback(TypeSignature.Base(descriptor))
+        callback(TypeSignature.Primitive(descriptor))
     }
 
     override fun visitArrayType() = TypeSignatureVisitor(api) {
-        callback(TypeSignature.Field.Array(it))
+        callback(TypeSignature.Reference.Array(it))
     }
 
     override fun visitTypeVariable(name: String) {
-        callback(TypeSignature.Field.TypeVariable(name))
+        callback(TypeSignature.Reference.TypeVariable(name))
     }
 
     override fun visitClassType(name: String) {
@@ -54,14 +55,14 @@ class TypeSignatureVisitor(api: Int, private val callback: (TypeSignature) -> Un
             baseClassSegment = ClassNameSegment(currentClassName!!, typeArguments.toList())
         }
 
-        callback(TypeSignature.Field.Class(baseClassSegment!!, innerClassSegments))
+        callback(TypeSignature.Reference.Class(baseClassSegment!!, innerClassSegments))
     }
 }
 
-fun parseTypeSignature(api: Int, signature: String): TypeSignature {
+fun parseTypeSignature(signature: String): TypeSignature {
     lateinit var type: TypeSignature
 
-    SignatureReader(signature).acceptType(TypeSignatureVisitor(api) { type = it })
+    SignatureReader(signature).acceptType(TypeSignatureVisitor(Opcodes.ASM6) { type = it })
 
     return type
 }

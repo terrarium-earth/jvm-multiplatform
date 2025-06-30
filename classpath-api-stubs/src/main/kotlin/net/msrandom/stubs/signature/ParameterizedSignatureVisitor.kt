@@ -2,7 +2,7 @@ package net.msrandom.stubs.signature
 
 import org.objectweb.asm.signature.SignatureVisitor
 
-abstract class GenericSignatureVisitor(api: Int) : SignatureVisitor(api) {
+abstract class ParameterizedSignatureVisitor(api: Int) : SignatureVisitor(api) {
     private var currentFormalTypeParameter: String? = null
     private var formalTypeParameterClass: TypeSignature? = null
     private var formalTypeParameterInterfaces = mutableListOf<TypeSignature>()

@@ -2,31 +2,33 @@ package net.msrandom.stubs.signature;
 
 import org.objectweb.asm.signature.SignatureVisitor
 
-sealed interface TypeSignature {
+sealed interface Signature {
     fun accept(visitor: SignatureVisitor)
+}
 
-    data class Base(val identifier: Char) : TypeSignature {
+sealed interface TypeSignature : Signature {
+    data class Primitive(val identifier: Char) : TypeSignature {
         override fun accept(visitor: SignatureVisitor) {
             visitor.visitBaseType(identifier)
         }
     }
 
-    sealed interface Field : TypeSignature {
-        data class Array(val typeSignature: TypeSignature) : Field {
+    sealed interface Reference : TypeSignature {
+        data class Array(val typeSignature: TypeSignature) : Reference {
             override fun accept(visitor: SignatureVisitor) {
-                visitor.visitArrayType()
+                val visitor = visitor.visitArrayType()
 
                 typeSignature.accept(visitor)
             }
         }
 
-        data class TypeVariable(val name: String) : Field {
+        data class TypeVariable(val name: String) : Reference {
             override fun accept(visitor: SignatureVisitor) {
                 visitor.visitTypeVariable(name)
             }
         }
 
-        data class Class(val base: ClassNameSegment, val innerClasses: List<ClassNameSegment>) : Field {
+        data class Class(val base: ClassNameSegment, val innerClasses: List<ClassNameSegment>) : Reference {
             override fun accept(visitor: SignatureVisitor) {
                 visitor.visitClassType(base.name)
 
@@ -48,9 +50,7 @@ sealed interface TypeSignature {
     }
 }
 
-sealed interface TypeArgument {
-    fun accept(visitor: SignatureVisitor)
-
+sealed interface TypeArgument : Signature {
     object Unbounded : TypeArgument {
         override fun accept(visitor: SignatureVisitor) {
             visitor.visitTypeArgument()
@@ -59,7 +59,8 @@ sealed interface TypeArgument {
 
     data class Bounded(val type: TypeSignature, val variance: Variance) : TypeArgument {
         override fun accept(visitor: SignatureVisitor) {
-            visitor.visitTypeArgument(variance.wildcard)
+            val visitor = visitor.visitTypeArgument(variance.wildcard)
+
             type.accept(visitor)
         }
 
