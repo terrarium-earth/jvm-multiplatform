@@ -10,11 +10,13 @@ data class FormalTypeParameter(
     override fun accept(visitor: SignatureVisitor) {
         visitor.visitFormalTypeParameter(name)
 
-        if (classBound != null) {
-            val visitor = visitor.visitClassBound()
-
-            classBound.accept(visitor)
+        val classBound = classBound ?: if (interfaceBounds.isEmpty()) {
+            TypeSignature.Reference.Class(ClassNameSegment("java/lang/Object"))
+        } else {
+            null
         }
+
+        classBound?.accept(visitor.visitClassBound())
 
         for (interfaceBound in interfaceBounds) {
             val visitor = visitor.visitInterfaceBound()

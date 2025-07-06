@@ -19,7 +19,6 @@ class ParsingTest {
                         ),
                     )
                 ),
-                emptyList(),
             ),
             parseTypeSignature("Ljava/lang/Class<TT;>;"),
         )
@@ -30,7 +29,6 @@ class ParsingTest {
                     "net/minecraft/world/level/block/state/properties/Property",
                     listOf(TypeArgument.Unbounded)
                 ),
-                emptyList()
             ),
             TypeArgument.Bounded.Variance.Invariant
         )
@@ -52,26 +50,22 @@ class ParsingTest {
                                                     "java/lang/Comparable",
                                                     listOf(TypeArgument.Unbounded)
                                                 ),
-                                                emptyList()
                                             ),
                                             TypeArgument.Bounded.Variance.Invariant
                                         ),
                                     )
                                 ),
-                                emptyList()
                             ),
                             TypeArgument.Bounded.Variance.Invariant
                         ),
                         TypeArgument.Bounded(
                             TypeSignature.Reference.Class(
                                 ClassNameSegment("java/lang/String", emptyList()),
-                                emptyList()
                             ),
                             TypeArgument.Bounded.Variance.Invariant
                         )
                     )
                 ),
-                emptyList()
             ),
             parseTypeSignature(
                 "Ljava/util/function/Function<Ljava/util/Map\$Entry<Lnet/minecraft/world/level/block/state/properties/Property<*>;Ljava/lang/Comparable<*>;>;Ljava/lang/String;>;"
@@ -90,13 +84,11 @@ class ParsingTest {
                                     "java/lang/Comparable",
                                     listOf(TypeArgument.Unbounded)
                                 ),
-                                emptyList()
                             ),
                             TypeArgument.Bounded.Variance.Invariant
                         )
                     )
                 ),
-                emptyList()
             ),
             parseTypeSignature(
                 "Lcom/google/common/collect/ImmutableMap<Lnet/minecraft/world/level/block/state/properties/Property<*>;Ljava/lang/Comparable<*>;>;"
@@ -115,14 +107,12 @@ class ParsingTest {
                                     "java/lang/Comparable",
                                     listOf(TypeArgument.Unbounded)
                                 ),
-                                emptyList()
                             ),
                             TypeArgument.Bounded.Variance.Invariant
                         ),
                         TypeArgument.Bounded(t("S"), TypeArgument.Bounded.Variance.Invariant)
                     )
                 ),
-                emptyList()
             ),
             parseTypeSignature(
                 "Lcom/google/common/collect/Table<Lnet/minecraft/world/level/block/state/properties/Property<*>;Ljava/lang/Comparable<*>;TS;>;"
@@ -141,7 +131,6 @@ class ParsingTest {
                         genericProperty,
                     )
                 ),
-                emptyList()
             ),
             parseTypeSignature(
                 "Lcom/google/common/collect/ImmutableSortedMap<Ljava/lang/String;Lnet/minecraft/world/level/block/state/properties/Property<*>;>;"
@@ -154,7 +143,6 @@ class ParsingTest {
                     "com/google/common/collect/ImmutableList",
                     listOf(TypeArgument.Bounded(t("S"), TypeArgument.Bounded.Variance.Invariant))
                 ),
-                emptyList()
             ),
             parseTypeSignature("Lcom/google/common/collect/ImmutableList<TS;>;")
         )
@@ -176,7 +164,6 @@ class ParsingTest {
                         genericProperty
                     )
                 ),
-                emptyList()
             ),
             parseTypeSignature(
                 "Lcom/google/common/collect/ImmutableSortedMap<Ljava/lang/String;Lnet/minecraft/world/level/block/state/properties/Property<*>;>;"
@@ -189,7 +176,6 @@ class ParsingTest {
                     "com/google/common/collect/ImmutableList",
                     listOf(TypeArgument.Bounded(t("S"), TypeArgument.Bounded.Variance.Invariant))
                 ),
-                emptyList()
             ),
             parseTypeSignature("Lcom/google/common/collect/ImmutableList<TS;>;")
         )
@@ -203,7 +189,6 @@ class ParsingTest {
                                 "java/util/function/Predicate",
                                 listOf(TypeArgument.Bounded(TypeSignature.Reference.Class(ClassNameSegment("net/minecraft/world/level/block/state/pattern/BlockInWorld", emptyList()), emptyList()), TypeArgument.Bounded.Variance.Invariant))
                             ),
-                            emptyList()
                         )
                     )
                 )
@@ -222,15 +207,12 @@ class ParsingTest {
                             TypeSignature.Reference.Class(
                                 ClassNameSegment(
                                     "net/minecraft/world/level/block/entity/BeehiveBlockEntity\$BeeData",
-                                    emptyList()
                                 ),
-                                emptyList()
                             ),
                             TypeArgument.Bounded.Variance.Invariant
                         )
                     )
                 ),
-                emptyList()
             ),
             parseTypeSignature("Ljava/util/List<Lnet/minecraft/world/level/block/entity/BeehiveBlockEntity\$BeeData;>;")
         )
@@ -243,13 +225,11 @@ class ParsingTest {
                         TypeArgument.Bounded(
                             TypeSignature.Reference.Class(
                                 ClassNameSegment("net/minecraft/world/level/block/Block", emptyList()),
-                                emptyList()
                             ),
                             TypeArgument.Bounded.Variance.Invariant
                         )
                     )
                 ),
-                emptyList()
             ),
             parseTypeSignature("Ljava/util/Set<Lnet/minecraft/world/level/block/Block;>;")
         )
@@ -260,7 +240,6 @@ class ParsingTest {
                     "com/mojang/datafixers/types/Type",
                     listOf(TypeArgument.Unbounded)
                 ),
-                emptyList()
             ),
             parseTypeSignature("Lcom/mojang/datafixers/types/Type<*>;")
         )
@@ -279,28 +258,23 @@ class ParsingTest {
                                             TypeSignature.Reference.Class(
                                                 ClassNameSegment(
                                                     "net/minecraft/world/level/block/entity/BannerPattern",
-                                                    emptyList()
                                                 ),
-                                                emptyList()
                                             ),
                                             TypeArgument.Bounded.Variance.Invariant
                                         ),
                                         TypeArgument.Bounded(
                                             TypeSignature.Reference.Class(
                                                 ClassNameSegment("net/minecraft/world/item/DyeColor", emptyList()),
-                                                emptyList()
                                             ),
                                             TypeArgument.Bounded.Variance.Invariant
                                         )
                                     )
                                 ),
-                                emptyList()
                             ),
                             TypeArgument.Bounded.Variance.Invariant
                         )
                     )
                 ),
-                emptyList()
             ),
 
             parseTypeSignature(

@@ -9,9 +9,7 @@ data class MethodSignature(
     val exceptionTypes: List<TypeSignature.Reference>,
 ): Signature {
     override fun accept(visitor: SignatureVisitor) {
-        for (typeParameter in typeParameters) {
-            typeParameter.accept(visitor)
-        }
+        typeParameters.accept(visitor)
 
         for (parameterType in parameterTypes) {
             val visitor = visitor.visitParameterType()

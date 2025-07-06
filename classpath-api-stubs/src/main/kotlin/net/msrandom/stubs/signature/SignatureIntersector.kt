@@ -93,11 +93,9 @@ internal object SignatureIntersector {
 
             is TypeSignature.Reference.Class -> intersectClassTypeSignatures(a, b as TypeSignature.Reference.Class)
             is TypeSignature.Reference.TypeVariable -> {
-                if (a.name == (b as TypeSignature.Reference.TypeVariable).name) {
-                    a
-                } else {
-                    null
-                }
+                // We add the 'a' names generally in formal type parameters, thus we can assume a name will reference ones from the 'a' names
+                // TODO This should eventually just be based on indices rather than names
+                a
             }
         }
     }
@@ -120,13 +118,24 @@ internal object SignatureIntersector {
         }
     }
 
-    private fun intersectTypeParameterLists(a: List<FormalTypeParameter>, b: List<FormalTypeParameter>): List<FormalTypeParameter> {
-        return (a + b).groupBy(FormalTypeParameter::name).values.mapNotNull {
-            if (it.size == 1) {
-                null
-            } else {
-                val (a, b) = it
+    private fun intersectTypeParameterLists(a: List<FormalTypeParameter>, b: List<FormalTypeParameter>): List<FormalTypeParameter>? {
+        if (a.size != b.size) {
+            // Not 1:1
+            val emptyA = a.isEmpty()
+            val emptyB = b.isEmpty()
 
+            if (emptyA || emptyB) {
+                // TODO Filter parameters to only include ones with bounds available in the target classpath
+                return if (emptyA) {
+                    b
+                } else {
+                    a
+                }
+            }
+
+            return null
+        } else {
+            return a.zip(b) { a, b ->
                 val classBound = if (a.classBound != null && b.classBound != null) {
                     intersectTypeSignatures(a.classBound, b.classBound)
                 } else {
@@ -140,11 +149,11 @@ internal object SignatureIntersector {
         }
     }
 
-    private fun intersectClassSignatures(a: ClassSignature, b: ClassSignature): ClassSignature {
-        val typeParameters = intersectTypeParameterLists(a.typeParameters, b.typeParameters)
+    private fun intersectClassSignatures(a: ClassSignature, b: ClassSignature): ClassSignature? {
+        val typeParameters = intersectTypeParameterLists(a.typeParameters, b.typeParameters) ?: return null
 
         val superClass = intersectClassTypeSignatures(a.superClass, b.superClass)
-            ?: TypeSignature.Reference.Class(ClassNameSegment("java/lang/Object", emptyList()), emptyList())
+            ?: TypeSignature.Reference.Class(ClassNameSegment("java/lang/Object"))
 
         val superInterfaces = a.superInterfaces.zip(b.superInterfaces, ::intersectClassTypeSignatures).filterNotNull()
 
@@ -152,7 +161,7 @@ internal object SignatureIntersector {
     }
 
     private fun intersectMethodSignatures(a: MethodSignature, b: MethodSignature): MethodSignature? {
-        val typeParameters = intersectTypeParameterLists(a.typeParameters, b.typeParameters)
+        val typeParameters = intersectTypeParameterLists(a.typeParameters, b.typeParameters) ?: return null
 
         val parameterTypes = a.parameterTypes.zip(b.parameterTypes) { a, b ->
             intersectTypeSignatures(a, b) ?: return null
@@ -170,10 +179,13 @@ internal object SignatureIntersector {
             return null
         }
 
+        println(a)
         val a = parseClassSignature(a)
         val b = parseClassSignature(b)
 
-        return write(intersectClassSignatures(a, b))
+        val signature = intersectClassSignatures(a, b) ?: return null
+
+        return write(signature)
     }
 
     fun intersectMethodSignature(a: String?, b: String?): String? {
@@ -181,6 +193,7 @@ internal object SignatureIntersector {
             return null
         }
 
+        println(a)
         val a = parseMethodSignature(a)
         val b = parseMethodSignature(b)
 

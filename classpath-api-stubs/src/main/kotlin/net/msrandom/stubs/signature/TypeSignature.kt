@@ -28,7 +28,7 @@ sealed interface TypeSignature : Signature {
             }
         }
 
-        data class Class(val base: ClassNameSegment, val innerClasses: List<ClassNameSegment>) : Reference {
+        data class Class(val base: ClassNameSegment, val innerClasses: List<ClassNameSegment> = emptyList()) : Reference {
             override fun accept(visitor: SignatureVisitor) {
                 visitor.visitClassType(base.name)
 
@@ -76,4 +76,4 @@ sealed interface TypeArgument : Signature {
     }
 }
 
-data class ClassNameSegment(val name: String, val typeArguments: List<TypeArgument>)
+data class ClassNameSegment(val name: String, val typeArguments: List<TypeArgument> = emptyList())
