@@ -9,7 +9,17 @@ subprojects {
 
     configure<PublishingExtension> {
         repositories {
-            maven("https://maven.msrandom.net/repository/cloche/") {
+            val isPluginClasspath = "annotation" !in project.name &&
+                    "processor" !in project.name &&
+                    project.path != rootProject.projects.kotlinClassExtensionsPlugin.path
+
+            val repository = if (isPluginClasspath) {
+                "cloche"
+            } else {
+                "root"
+            }
+
+            maven("https://maven.msrandom.net/repository/$repository/") {
                 credentials {
                     val mavenUsername: String? by project
                     val mavenPassword: String? by project
