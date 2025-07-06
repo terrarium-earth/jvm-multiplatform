@@ -106,9 +106,8 @@ object ClassNodeIntersector {
                     method.visibleAnnotations = visibleAnnotations
                     method.invisibleAnnotations = invisibleAnnotations
 
-                    if (methodA.annotationDefault == methodB.annotationDefault) {
-                        method.annotationDefault = methodA.annotationDefault
-                    }
+                    // TODO This is not fully correct
+                    method.annotationDefault = methodA.annotationDefault
 
                     method
                 }

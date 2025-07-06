@@ -81,6 +81,8 @@ object StubGenerator {
             "org.jline",
             "net.jodah",
             "org.checkerframework",
+            "org.spongepowered",
+            "net.fabricmc:sponge",
         ) + extraExcludes
 
         val classpaths = classpaths.map { artifacts ->
@@ -89,7 +91,7 @@ object StubGenerator {
             val (excluded, included) = artifacts.partition {
                 val id = it.id.orNull
 
-                id is ModuleComponentIdentifier && exclude.any(id.group::startsWith)
+                id is ModuleComponentIdentifier && exclude.any(id.displayName::startsWith)
             }
 
             ClasspathLoader(
