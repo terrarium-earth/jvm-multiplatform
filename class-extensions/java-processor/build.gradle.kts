@@ -17,7 +17,7 @@ kotlin {
 }
 
 dependencies {
-    implementation(projects.javaExpectActualAnnotations)
+    implementation(projects.classExtensionAnnotations)
     implementation(projects.javaProcessorUtil)
 
     ksp(group = "dev.zacsweers.autoservice", name = "auto-service-ksp", version = "1.2.0")

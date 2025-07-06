@@ -24,4 +24,5 @@ includeSubproject("class-extension-annotations", "class-extensions/annotations")
 includeSubproject("java-class-extensions-processor", "class-extensions/java-processor")
 includeSubproject("kotlin-class-extensions-plugin", "class-extensions/kotlin-plugin")
 
+include("java-processor-util")
 include("classpath-api-stubs")

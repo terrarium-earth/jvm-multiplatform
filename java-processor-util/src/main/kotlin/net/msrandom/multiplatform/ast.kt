@@ -9,7 +9,6 @@ import com.sun.tools.javac.tree.JCTree.*
 import com.sun.tools.javac.tree.TreeMaker
 import com.sun.tools.javac.util.Context
 import com.sun.tools.javac.util.List
-import net.msrandom.multiplatform.annotations.Actual
 import net.msrandom.multiplatform.bootstrap.ElementRemover
 import javax.annotation.processing.ProcessingEnvironment
 import javax.lang.model.type.TypeKind
@@ -42,23 +41,17 @@ fun stub(tree: JCVariableDecl, context: Context) {
     tree.init = typeDefault(tree.getType(), treeMaker)
 }
 
-fun stub(tree: JCMethodDecl, context: Context) {
-    if (tree.body != null) return
+inline fun <reified A : Annotation> JCModifiers.filterAnnotation() = filterAnnotation(A::class.java)
 
-    val treeMaker = TreeMaker.instance(context)
-    val returnType = tree.returnType
-
-    val statements: JavaCompilerList<JCStatement> =
-        if (returnType == null || returnType is PrimitiveTypeTree && returnType.primitiveTypeKind == TypeKind.VOID) {
-            JavaCompilerList.nil()
-        } else {
-            JavaCompilerList.of(treeMaker.Return(typeDefault(tree.returnType, treeMaker)))
-        }
-
-    tree.body = treeMaker.Block(0, statements)
+fun JCModifiers.filterAnnotation(annotationToSkip: Class<out Annotation>) {
+    annotations.firstOrNull { annotationToSkip.name.equals(it.type?.toString()) }?.let {
+        annotations = JavaCompilerList.filter(annotations, it)
+    }
 }
 
-fun JCTree.clone(context: Context): JCTree {
+inline fun <reified A : Annotation> JCTree.clone(context: Context) = clone(context, A::class.java)
+
+fun JCTree.clone(context: Context, annotationToSkip: Class<out Annotation>): JCTree {
     val treeMaker = TreeMaker.instance(context)
 
     return when (this) {
@@ -77,7 +70,7 @@ fun JCTree.clone(context: Context): JCTree {
                 it.pos = pos
                 it.mods.pos = mods.pos
 
-                it.mods.annotations.firstOrNull { annotation -> Actual::class.qualifiedName.equals(annotation.type?.toString()) }?.let { annotation ->
+                it.mods.annotations.firstOrNull { annotation -> annotationToSkip.name.equals(annotation.type?.toString()) }?.let { annotation ->
                     it.mods.annotations = JavaCompilerList.filter(it.mods.annotations, annotation)
                 }
             }
@@ -93,7 +86,7 @@ fun JCTree.clone(context: Context): JCTree {
                 it.pos = pos
                 it.mods.pos = mods.pos
 
-                it.mods.annotations.firstOrNull { annotation -> Actual::class.qualifiedName.equals(annotation.type?.toString()) }?.let { annotation ->
+                it.mods.annotations.firstOrNull { annotation -> annotationToSkip.equals(annotation.type?.toString()) }?.let { annotation ->
                     it.mods.annotations = JavaCompilerList.filter(it.mods.annotations, annotation)
                 }
             }
@@ -103,6 +96,22 @@ fun JCTree.clone(context: Context): JCTree {
             throw UnsupportedOperationException("Attempting to clone $kind")
         }
     }
+}
+
+fun stub(tree: JCMethodDecl, context: Context) {
+    if (tree.body != null) return
+
+    val treeMaker = TreeMaker.instance(context)
+    val returnType = tree.returnType
+
+    val statements: JavaCompilerList<JCStatement> =
+        if (returnType == null || returnType is PrimitiveTypeTree && returnType.primitiveTypeKind == TypeKind.VOID) {
+            JavaCompilerList.nil()
+        } else {
+            JavaCompilerList.of(treeMaker.Return(typeDefault(tree.returnType, treeMaker)))
+        }
+
+    tree.body = treeMaker.Block(0, statements)
 }
 
 fun JCClassDecl.prepareClass(processingEnvironment: ProcessingEnvironment, elementRemover: ElementRemover) {

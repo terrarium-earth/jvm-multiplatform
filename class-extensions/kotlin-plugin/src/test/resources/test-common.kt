@@ -1,6 +1,6 @@
 package a.b.c
 
-class A : I {
+class A<T> : I {
     val a: Int = 1
 
     fun toBeShadowed() {
@@ -13,6 +13,6 @@ interface I {
 }
 
 fun main() {
-    println(A().hi())
+    println(A<Int>().hi())
     // println(A().b)
 }

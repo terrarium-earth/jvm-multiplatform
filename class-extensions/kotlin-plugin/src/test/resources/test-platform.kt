@@ -4,7 +4,7 @@ import net.msrandom.classextensions.ClassExtension
 import net.msrandom.classextensions.ExtensionInject
 import net.msrandom.classextensions.ExtensionShadow
 
-@ClassExtension(A::class)
+@ClassExtension(a.b.c.A::class)
 class AExtension : I {
     @ExtensionShadow
     val a: Int = TODO()

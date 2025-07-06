@@ -1,12 +1,12 @@
 # jvm-multiplatform
 ### A collection of multiplatform utilities for the JVM
 
-These utilities utilize the static linkage for handling common code, rather than dynamic linking (Jars in the classpath) which is what's usually used in the JVM Ecosystem
+These utilities use static linkage for handling common code, rather than dynamic linking (JARs in the classpath) which is what's usually used in the JVM Ecosystem
 
 ## Virtual SourceSets
 The base for any jvm-multiplatform utility to work, as it allows the statically linked source sets to work
 - In Java, by including the common code in the same compilation
-- In Kotlin by utilizing a multiplatform structure while still compiling only for the JVM platform
+- In Kotlin by using a Kotlin Multiplatform structure while still compiling only for the JVM platform
 
 ```groovy
 sourceSets {
@@ -108,7 +108,7 @@ tasks.compileJava {
 
 dependencies {
     compileOnly("net.msrandom:java-expect-actual-annotations:1.0.0")
-    annotationProcessor("net.msrandom:java-expect-actual-processor:1.0.8")
+    annotationProcessor("net.msrandom:java-expect-actual-processor:1.0.9")
 }
 ```
 
@@ -161,10 +161,12 @@ public class CommonExtension implements SomeInterface {
 }
 ```
 
-Class extensions can be applied using a Gradle Plugin, for both the Java and Kotlin versions
+The Java version of Class extensions can be applied using by adding the annotation processor
 ```groovy
-plugins {
-    id "net.msrandom.classextensions"
+// Assuming the previous structure of common main + platform source set
+dependencies {
+    platformCompileOnly("net.msrandom:class-extension-annotations:1.0.0")
+    platformAnnotationProcessor("net.msrandom:java-class-extensions-processor:1.0.0")
 }
 ```
 
@@ -194,6 +196,13 @@ class CommonExtension : SomeInterface {
     override fun interfaceMethod() {
         println("Extension injected")
     }
+}
+```
+
+The Kotlin version of Class extensions can be applied using a Gradle Plugin
+```groovy
+plugins {
+    id "net.msrandom.classextensions" version "1.0.11"
 }
 ```
 

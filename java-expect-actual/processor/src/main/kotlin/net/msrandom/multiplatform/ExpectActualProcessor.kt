@@ -12,22 +12,26 @@ import com.sun.tools.javac.tree.JCTree.JCVariableDecl
 import com.sun.tools.javac.util.Context
 import net.msrandom.multiplatform.annotations.Actual
 import net.msrandom.multiplatform.annotations.Expect
+import net.msrandom.multiplatform.bootstrap.BootstappedProcessor
+import net.msrandom.multiplatform.bootstrap.GENERATE_EXPECT_STUBS_OPTION
 import net.msrandom.multiplatform.bootstrap.PlatformHelper
 import javax.annotation.processing.*
 import javax.lang.model.element.*
 
-private val EXPECT_ANNOTATION_NAME = Expect::class.simpleName!!
-private val ACTUAL_ANNOTATION_NAME = Actual::class.simpleName!!
+private val EXPECT_ANNOTATION_NAME = "@${Expect::class.simpleName}"
+private val ACTUAL_SUFFIX = Actual::class.simpleName!!
+private val ACTUAL_ANNOTATION_NAME = "@$ACTUAL_SUFFIX"
 
 // Loaded reflectively after com.sun.tools.javac packages are exported
 @Suppress("unused")
-class MultiplatformAnnotationProcessor(
+class ExpectActualProcessor(
     private val processingEnvironment: ProcessingEnvironment,
     private val platformHelper: PlatformHelper,
-    private val generateStubs: Boolean,
-) {
+    options: Map<String, String>,
+) : BootstappedProcessor {
     private val context: Context
     private val trees: JavacTrees
+    private val generateStubs = GENERATE_EXPECT_STUBS_OPTION in options
 
     init {
         processingEnvironment as JavacProcessingEnvironment
@@ -40,26 +44,26 @@ class MultiplatformAnnotationProcessor(
         implementations.isEmpty() -> if (generateStubs) {
             null
         } else {
-            throw IllegalArgumentException("${name()} includes @$EXPECT_ANNOTATION_NAME with no @$ACTUAL_ANNOTATION_NAME")
+            throw IllegalArgumentException("${name()} includes $EXPECT_ANNOTATION_NAME with no $ACTUAL_ANNOTATION_NAME")
         }
 
-        implementations.size > 1 -> throw UnsupportedOperationException("${name()} includes @$EXPECT_ANNOTATION_NAME has more than one @$ACTUAL_ANNOTATION_NAME")
+        implementations.size > 1 -> throw UnsupportedOperationException("${name()} includes $EXPECT_ANNOTATION_NAME has more than one $ACTUAL_ANNOTATION_NAME")
         else -> implementations.first()
     }
 
     private fun checkField(expect: VariableElement) {
         if ((trees.getTree(expect) as VariableTree).initializer != null) {
-            throw UnsupportedOperationException("@$EXPECT_ANNOTATION_NAME field ${(expect.enclosingElement as TypeElement).qualifiedName}.${expect.simpleName} has initializer")
+            throw UnsupportedOperationException("$EXPECT_ANNOTATION_NAME field ${(expect.enclosingElement as TypeElement).qualifiedName}.${expect.simpleName} has initializer")
         }
     }
 
     private fun checkMethod(expect: ExecutableElement) {
         if (trees.getTree(expect).getBody() != null) {
-            throw UnsupportedOperationException("@$EXPECT_ANNOTATION_NAME method ${(expect.enclosingElement as TypeElement).qualifiedName}.${expect.simpleName} has body")
+            throw UnsupportedOperationException("$EXPECT_ANNOTATION_NAME method ${(expect.enclosingElement as TypeElement).qualifiedName}.${expect.simpleName} has body")
         }
     }
 
-    fun process(roundEnvironment: RoundEnvironment) {
+    override fun process(roundEnvironment: RoundEnvironment) {
         val allExpected = roundEnvironment.getElementsAnnotatedWith(Expect::class.java)
         val allActual = roundEnvironment.getElementsAnnotatedWith(Actual::class.java)
 
@@ -68,17 +72,17 @@ class MultiplatformAnnotationProcessor(
                 // class, enum, record, interface, annotation
 
                 val implementations = allActual.filter { actual ->
-                    actual is TypeElement && actual.qualifiedName contentEquals expect.qualifiedName.toString() + ACTUAL_ANNOTATION_NAME
+                    actual is TypeElement && actual.qualifiedName contentEquals expect.qualifiedName.toString() + ACTUAL_SUFFIX
                 }
 
                 val actual = getActual(implementations, expect::getQualifiedName) ?: return@associateWith null
 
                 if (actual.kind != expect.kind) {
-                    throw UnsupportedOperationException("@$ACTUAL_ANNOTATION_NAME type is a different kind from its @$EXPECT_ANNOTATION_NAME, expected ${expect.kind} but found ${actual.kind}")
+                    throw UnsupportedOperationException("$ACTUAL_ANNOTATION_NAME type is a different kind from its $EXPECT_ANNOTATION_NAME, expected ${expect.kind} but found ${actual.kind}")
                 }
 
                 if (actual.modifiers != expect.modifiers) {
-                    throw UnsupportedOperationException("@$ACTUAL_ANNOTATION_NAME type has different modifiers from its @$EXPECT_ANNOTATION_NAME, expected ${expect.modifiers} but found ${actual.modifiers}")
+                    throw UnsupportedOperationException("$ACTUAL_ANNOTATION_NAME type has different modifiers from its $EXPECT_ANNOTATION_NAME, expected ${expect.modifiers} but found ${actual.modifiers}")
                 }
 
                 actual
@@ -90,12 +94,12 @@ class MultiplatformAnnotationProcessor(
                     val actualOwner = actual.enclosingElement as TypeElement
                     val actualOwnerName = actualOwner.qualifiedName
 
-                    if (!actualOwnerName.endsWith(ACTUAL_ANNOTATION_NAME)) {
-                        throw IllegalArgumentException("$actualOwnerName does not end with $ACTUAL_ANNOTATION_NAME")
+                    if (!actualOwnerName.endsWith(ACTUAL_SUFFIX)) {
+                        throw IllegalArgumentException("$actualOwnerName does not end with $ACTUAL_SUFFIX")
                     }
 
                     actual.kind == ElementKind.METHOD &&
-                            actualOwnerName contentEquals expectOwnerName.toString() + ACTUAL_ANNOTATION_NAME &&
+                            actualOwnerName contentEquals expectOwnerName.toString() + ACTUAL_SUFFIX &&
                             actual.simpleName == expect.simpleName &&
                             actual.parameters.map(VariableElement::asType).zip(expect.parameters.map(VariableElement::asType)).all { (a, b) -> a.toString() == b.toString() }
                 }
@@ -111,12 +115,12 @@ class MultiplatformAnnotationProcessor(
                     val actualOwner = actual.enclosingElement as TypeElement
                     val actualOwnerName = actualOwner.qualifiedName
 
-                    if (!actualOwnerName.endsWith(ACTUAL_ANNOTATION_NAME)) {
-                        throw IllegalArgumentException("$actualOwnerName does not end with $ACTUAL_ANNOTATION_NAME")
+                    if (!actualOwnerName.endsWith(ACTUAL_SUFFIX)) {
+                        throw IllegalArgumentException("$actualOwnerName does not end with $ACTUAL_SUFFIX")
                     }
 
                     actual.kind == ElementKind.FIELD &&
-                            actualOwnerName contentEquals expectOwnerName.toString() + ACTUAL_ANNOTATION_NAME &&
+                            actualOwnerName contentEquals expectOwnerName.toString() + ACTUAL_SUFFIX &&
                             actual.simpleName == expect.simpleName
                 }
 
@@ -125,12 +129,12 @@ class MultiplatformAnnotationProcessor(
                 } ?: return@associateWith null
 
                 if (actual.asType().toString() != expect.asType().toString()) {
-                    throw UnsupportedOperationException("@$EXPECT_ANNOTATION_NAME field has differing type from @$ACTUAL_ANNOTATION_NAME, expected ${expect.asType()} but found ${actual.asType()}")
+                    throw UnsupportedOperationException("$EXPECT_ANNOTATION_NAME field has differing type from $ACTUAL_ANNOTATION_NAME, expected ${expect.asType()} but found ${actual.asType()}")
                 }
 
                 actual
             } else {
-                throw UnsupportedOperationException("Found @$EXPECT_ANNOTATION_NAME on element of unsupported kind ${expect.kind}")
+                throw UnsupportedOperationException("Found $EXPECT_ANNOTATION_NAME on element of unsupported kind ${expect.kind}")
             }
         }
 
@@ -142,7 +146,7 @@ class MultiplatformAnnotationProcessor(
                 "$it."
             } ?: ""
 
-            throw IllegalArgumentException("$ownerName${it.simpleName} includes an @$ACTUAL_ANNOTATION_NAME without a corresponding @$EXPECT_ANNOTATION_NAME")
+            throw IllegalArgumentException("$ownerName${it.simpleName} includes an $ACTUAL_ANNOTATION_NAME without a corresponding $EXPECT_ANNOTATION_NAME")
         }
 
         fun clearActual(unit: JCCompilationUnit) {
@@ -177,9 +181,7 @@ class MultiplatformAnnotationProcessor(
 
                     expectTree.body = actualTree.getBody()
 
-                    expectTree.mods.annotations.firstOrNull { Expect::class.qualifiedName.equals(it.type?.toString()) }?.let {
-                        expectTree.mods.annotations = JavaCompilerList.filter(expectTree.mods.annotations, it)
-                    }
+                    expectTree.modifiers.filterAnnotation<Expect>()
 
                     val expectOwner = expect.enclosingElement
 
@@ -219,9 +221,7 @@ class MultiplatformAnnotationProcessor(
 
                     expectTree.init = actualTree.initializer
 
-                    expectTree.mods.annotations.firstOrNull { Expect::class.qualifiedName.equals(it.type?.toString()) }?.let {
-                        expectTree.mods.annotations = JavaCompilerList.filter(expectTree.mods.annotations, it)
-                    }
+                    expectTree.modifiers.filterAnnotation<Expect>()
 
                     val expectOwner = expect.enclosingElement
 
@@ -270,7 +270,7 @@ class MultiplatformAnnotationProcessor(
 
                     for (member in expect.enclosedElements) {
                         if (member.getAnnotation(Expect::class.java) != null) {
-                            throw UnsupportedOperationException("${expect.qualifiedName}.${member.simpleName} has @$EXPECT_ANNOTATION_NAME while owned by @$EXPECT_ANNOTATION_NAME type")
+                            throw UnsupportedOperationException("${expect.qualifiedName}.${member.simpleName} has $EXPECT_ANNOTATION_NAME while owned by $EXPECT_ANNOTATION_NAME type")
                         }
 
                         if (!platformHelper.isGenerated(processingEnvironment, member)) {
@@ -283,11 +283,11 @@ class MultiplatformAnnotationProcessor(
                     }
 
                     val members = actualTree.members.map {
-                        it.clone(context)
+                        it.clone<Actual>(context)
                     }
 
                     val imports = (expectCompilationUnit.imports + actualCompilationUnit.imports).filterNot {
-                        it.kind == Tree.Kind.IMPORT && (it as ImportTree).qualifiedIdentifier.toString().startsWith(Expect::class.java.getPackage().name)
+                        (it as ImportTree).qualifiedIdentifier.toString().startsWith(Expect::class.java.getPackage().name)
                     }
 
                     val unitDefs =
@@ -298,11 +298,9 @@ class MultiplatformAnnotationProcessor(
                     clearActual(actualCompilationUnit)
 
                     expectTree.pos = actualTree.pos
-                    expectTree.mods.pos = actualTree.mods.pos
+                    expectTree.modifiers.pos = actualTree.modifiers.pos
 
-                    expectTree.mods.annotations.firstOrNull { Expect::class.qualifiedName.equals(it.type?.toString()) }?.let {
-                        expectTree.mods.annotations = JavaCompilerList.filter(expectTree.mods.annotations, it)
-                    }
+                    expectTree.modifiers.filterAnnotation<Expect>()
 
                     expectTree.typarams = actualTree.typeParameters
                     expectTree.extending = actualTree.extendsClause
