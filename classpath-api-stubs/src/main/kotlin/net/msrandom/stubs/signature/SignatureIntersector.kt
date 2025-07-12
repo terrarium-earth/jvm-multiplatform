@@ -179,7 +179,6 @@ internal object SignatureIntersector {
             return null
         }
 
-        println(a)
         val a = parseClassSignature(a)
         val b = parseClassSignature(b)
 
@@ -193,7 +192,6 @@ internal object SignatureIntersector {
             return null
         }
 
-        println(a)
         val a = parseMethodSignature(a)
         val b = parseMethodSignature(b)
 
