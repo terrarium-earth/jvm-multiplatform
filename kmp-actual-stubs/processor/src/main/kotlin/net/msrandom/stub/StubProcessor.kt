@@ -17,6 +17,7 @@ import kotlin.io.path.Path
 import kotlin.reflect.KClass
 
 const val CANT_RUN_COMMON = "throw UnsupportedOperationException(\"\"\"\nCommon modules are not runnable\n\"\"\")"
+private val CONSTRUCTOR_LESS_KINDS = setOf(ClassKind.OBJECT, ClassKind.INTERFACE)
 
 class StubProcessor(private val environment: SymbolProcessorEnvironment) : SymbolProcessor {
     private fun mapModifiers(modifiers: Iterable<Modifier>) = modifiers.mapNotNull {
@@ -91,21 +92,21 @@ class StubProcessor(private val environment: SymbolProcessorEnvironment) : Symbo
 
         typeBuilder.addAnnotations(mapAnnotations(type.annotations))
 
-        val isObject = type.classKind == ClassKind.OBJECT
+        val canHaveConstructor = type.classKind !in CONSTRUCTOR_LESS_KINDS
 
         if (type.classKind == ClassKind.ENUM_CLASS) {
             for (declaration in type.declarations) {
                 typeBuilder.addEnumConstant(declaration.simpleName.asString())
             }
         } else {
-            if (!isObject) {
+            if (canHaveConstructor) {
                 typeBuilder.primaryConstructor(type.primaryConstructor?.let { functionSpec(it, true) })
             }
 
             typeBuilder.addFunctions(
                 type.getDeclaredFunctions()
                     .run {
-                        if (isObject) {
+                        if (!canHaveConstructor) {
                             filterNot(KSFunctionDeclaration::isConstructor)
                         } else {
                             filterNot { it == type.primaryConstructor }
