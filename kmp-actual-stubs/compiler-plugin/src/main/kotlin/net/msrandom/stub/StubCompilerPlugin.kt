@@ -1,6 +1,7 @@
 package net.msrandom.stub
 
 import com.google.auto.service.AutoService
+import net.msrandom.stub.fir.FirExpectEnumConstructorGenerator
 import net.msrandom.stub.fir.FirExpectTransformer
 import net.msrandom.stub.ir.IrStubBodyGenerator
 import org.jetbrains.kotlin.backend.common.extensions.IrGenerationExtension
@@ -27,5 +28,6 @@ class StubCompilerPlugin : CompilerPluginRegistrar() {
 object StubFirExtensions : FirExtensionRegistrar() {
     override fun ExtensionRegistrarContext.configurePlugin() {
         +::FirExpectTransformer
+        +::FirExpectEnumConstructorGenerator
     }
 }

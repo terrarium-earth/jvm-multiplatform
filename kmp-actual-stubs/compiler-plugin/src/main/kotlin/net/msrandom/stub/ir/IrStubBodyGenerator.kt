@@ -5,6 +5,8 @@ import net.msrandom.stub.UNSUPPORTED_OPERATION_EXCEPTION
 import org.jetbrains.kotlin.backend.common.extensions.IrGenerationExtension
 import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
 import org.jetbrains.kotlin.backend.common.lower.irThrow
+import org.jetbrains.kotlin.descriptors.ClassKind
+import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.builders.IrSingleStatementBuilder
 import org.jetbrains.kotlin.ir.builders.Scope
@@ -20,39 +22,49 @@ import org.jetbrains.kotlin.ir.util.constructors
 import org.jetbrains.kotlin.ir.util.hasAnnotation
 import org.jetbrains.kotlin.ir.visitors.IrVisitor
 
-// data = "is member of expect class". kotlin just complains about mismatched parameter names
-class IrStubBodyGenerator(val context: IrPluginContext) : IrVisitor<Unit, Boolean>() {
+typealias IsExpectClassMember = Boolean
+
+class IrStubBodyGenerator(val context: IrPluginContext) : IrVisitor<Unit, IsExpectClassMember>() {
 
     private val symbols: Symbols = Symbols()
 
-    override fun visitElement(element: IrElement, data: Boolean) {}
+    override fun visitElement(element: IrElement, data: IsExpectClassMember) {}
 
-    override fun visitFile(declaration: IrFile, data: Boolean) {
+    override fun visitFile(declaration: IrFile, data: IsExpectClassMember) {
         declaration.acceptChildren(this, false)
     }
 
-    override fun visitClass(declaration: IrClass, data: Boolean) {
+    override fun visitClass(declaration: IrClass, data: IsExpectClassMember) {
         if (data || declaration.hasAnnotation(STUB)) {
-            if (declaration.constructors.toList().isEmpty()) {
-                declaration.addConstructor().apply {
-                    body = createErrorBody(declaration)
-                }
-            } else {
-                declaration.constructors.forEach {
-                    it.body = createErrorBody(declaration)
+            if (declaration.kind != ClassKind.INTERFACE) {
+                if (declaration.constructors.toList().isEmpty()) {
+                    declaration.addConstructor().apply {
+                        isPrimary = true
+                        visibility = if (declaration.kind == ClassKind.OBJECT) {
+                            DescriptorVisibilities.PRIVATE
+                        } else {
+                            DescriptorVisibilities.PUBLIC
+                        }
+
+                        body = createErrorBody(declaration)
+                    }
+                } else {
+                    declaration.constructors.forEach {
+                        it.body = createErrorBody(declaration)
+                    }
                 }
             }
             declaration.acceptChildren(this, true)
         }
     }
 
-    override fun visitFunction(declaration: IrFunction, data: Boolean) {
+    override fun visitFunction(declaration: IrFunction, data: IsExpectClassMember) {
         if (data || declaration.hasAnnotation(STUB)) {
             declaration.body = createErrorBody(declaration)
         }
     }
 
-    override fun visitProperty(declaration: IrProperty, data: Boolean) {
+    override fun visitProperty(declaration: IrProperty, data: IsExpectClassMember) {
         if (data || declaration.hasAnnotation(STUB)) {
             declaration.backingField?.initializer = createErrorBody(declaration)
             declaration.getter?.body = createErrorBody(declaration)
