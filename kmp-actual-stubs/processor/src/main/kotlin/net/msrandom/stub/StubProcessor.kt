@@ -8,11 +8,28 @@ import com.google.devtools.ksp.processing.Resolver
 import com.google.devtools.ksp.processing.SymbolProcessor
 import com.google.devtools.ksp.processing.SymbolProcessorEnvironment
 import com.google.devtools.ksp.processing.SymbolProcessorProvider
-import com.google.devtools.ksp.symbol.*
-import com.squareup.kotlinpoet.*
+import com.google.devtools.ksp.symbol.ClassKind
+import com.google.devtools.ksp.symbol.KSAnnotated
+import com.google.devtools.ksp.symbol.KSAnnotation
+import com.google.devtools.ksp.symbol.KSClassDeclaration
+import com.google.devtools.ksp.symbol.KSDeclaration
+import com.google.devtools.ksp.symbol.KSFunctionDeclaration
+import com.google.devtools.ksp.symbol.KSName
+import com.google.devtools.ksp.symbol.KSPropertyAccessor
+import com.google.devtools.ksp.symbol.KSPropertyDeclaration
+import com.google.devtools.ksp.symbol.KSTypeReference
+import com.google.devtools.ksp.symbol.Modifier
+import com.squareup.kotlinpoet.AnnotationSpec
+import com.squareup.kotlinpoet.FileSpec
+import com.squareup.kotlinpoet.FunSpec
+import com.squareup.kotlinpoet.KModifier
+import com.squareup.kotlinpoet.ParameterSpec
+import com.squareup.kotlinpoet.PropertySpec
+import com.squareup.kotlinpoet.TypeSpec
 import com.squareup.kotlinpoet.ksp.toClassName
 import com.squareup.kotlinpoet.ksp.toKModifier
 import com.squareup.kotlinpoet.ksp.toTypeName
+import com.squareup.kotlinpoet.ksp.toTypeVariableName
 import kotlin.io.path.Path
 import kotlin.reflect.KClass
 
@@ -31,14 +48,10 @@ class StubProcessor(private val environment: SymbolProcessorEnvironment) : Symbo
         val builder = AnnotationSpec.builder(it.annotationType.resolve().toClassName())
 
         for (argument in it.arguments) {
-            val value = argument.value
-
-            if (value is KClass<*>) {
-                builder.addMember("%T::class", value.qualifiedName!!)
-            } else if (value is String) {
-                builder.addMember("\"%s\"", value)
-            } else {
-                builder.addMember(value.toString())
+            when (val value = argument.value) {
+                is KClass<*> -> builder.addMember("%T::class", value.qualifiedName!!)
+                is String -> builder.addMember("\"%s\"", value)
+                else -> builder.addMember(value.toString())
             }
         }
 
@@ -143,6 +156,10 @@ class StubProcessor(private val environment: SymbolProcessorEnvironment) : Symbo
             builder.addModifiers(mapModifiers(function.modifiers))
         }
 
+        for (parameter in function.typeParameters) {
+            builder.addTypeVariable(parameter.toTypeVariableName())
+        }
+
         builder.addAnnotations(mapAnnotations(function.annotations))
 
         for (parameter in function.parameters) {
@@ -202,11 +219,7 @@ class StubProcessor(private val environment: SymbolProcessorEnvironment) : Symbo
     }
 
     override fun process(resolver: Resolver): List<KSAnnotated> {
-        val directory = environment.options["actualStubDir"]
-
-        if (directory == null) {
-            return emptyList()
-        }
+        val directory = environment.options["actualStubDir"] ?: return emptyList()
 
         val directoryPath = Path(directory)
 
