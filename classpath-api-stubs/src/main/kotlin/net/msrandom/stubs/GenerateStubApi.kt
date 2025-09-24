@@ -37,8 +37,6 @@ abstract class GenerateStubApi : DefaultTask() {
     init {
         apiFileName.convention("api-stub.jar")
         outputDirectory.convention(project.layout.dir(project.provider { temporaryDir }))
-        doFirst {
-        }
     }
 
     @TaskAction
