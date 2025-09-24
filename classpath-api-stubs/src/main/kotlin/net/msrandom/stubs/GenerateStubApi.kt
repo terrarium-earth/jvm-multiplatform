@@ -6,10 +6,19 @@ import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
-import org.gradle.api.tasks.*
+import org.gradle.api.tasks.CacheableTask
+import org.gradle.api.tasks.CompileClasspath
+import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.InputFile
+import org.gradle.api.tasks.Nested
+import org.gradle.api.tasks.Optional
+import org.gradle.api.tasks.OutputDirectory
+import org.gradle.api.tasks.TaskAction
 import java.nio.file.StandardCopyOption
+import kotlin.io.path.ExperimentalPathApi
 import kotlin.io.path.copyTo
 import kotlin.io.path.createDirectories
+import kotlin.io.path.deleteRecursively
 
 @CacheableTask
 abstract class GenerateStubApi : DefaultTask() {
@@ -28,11 +37,18 @@ abstract class GenerateStubApi : DefaultTask() {
     init {
         apiFileName.convention("api-stub.jar")
         outputDirectory.convention(project.layout.dir(project.provider { temporaryDir }))
+        doFirst {
+        }
     }
 
     @TaskAction
     fun generateStub() {
         val outputDirectory = outputDirectory.asFile.get().toPath()
+
+        @OptIn(ExperimentalPathApi::class)
+        outputDirectory.deleteRecursively()
+        outputDirectory.createDirectories()
+
         val apiFile = outputDirectory.resolve(apiFileName.get())
 
         val extras = StubGenerator.generateStub(classpaths.get(), excludes.get(), apiFile)
