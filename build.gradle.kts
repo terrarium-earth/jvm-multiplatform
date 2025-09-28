@@ -11,7 +11,8 @@ subprojects {
         repositories {
             val isPluginClasspath = "annotation" !in project.name &&
                     "processor" !in project.name &&
-                    project.path != rootProject.projects.kotlinClassExtensionsPlugin.path
+                    project.path != rootProject.projects.kotlinClassExtensionsPlugin.path &&
+                    project.path != rootProject.projects.kmpActualStubsCompilerPlugin.path
 
             val repository = if (isPluginClasspath) {
                 "cloche"
