@@ -17,6 +17,7 @@ includeSubproject("java-expect-actual-processor", "java-expect-actual/processor"
 
 includeSubproject("kmp-actual-stub-annotations", "kmp-actual-stubs/annotations")
 includeSubproject("kmp-actual-stubs-processor", "kmp-actual-stubs/processor")
+includeSubproject("kmp-actual-stubs-compiler-plugin", "kmp-actual-stubs/compiler-plugin")
 
 includeSubproject("class-extensions-idea", "class-extensions/idea-plugin")
 includeSubproject("class-extensions-gradle-plugin", "class-extensions/gradle-plugin")
