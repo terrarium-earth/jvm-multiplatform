@@ -35,7 +35,5 @@ dependencies {
     ksp(group = "dev.zacsweers.autoservice", name = "auto-service-ksp", version = "1.2.0")
     compileOnly(group = "com.google.auto.service", name = "auto-service-annotations", version = "1.1.1")
 
-    implementation(group = "com.google.devtools.ksp", name = "com.google.devtools.ksp.gradle.plugin", version = "2.1.0-1.0.29")
-
     compileOnly(kotlin("gradle-plugin"))
 }
