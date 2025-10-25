@@ -1,4 +1,3 @@
-import org.gradle.internal.component.external.model.ProjectDerivedCapability
 import org.gradle.internal.jvm.Jvm
 import org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
@@ -34,6 +33,7 @@ private fun <T> uncheckedNull() = null as T
 
 dependencies {
     ksp(group = "dev.zacsweers.autoservice", name = "auto-service-ksp", version = "1.2.0")
+
     java11.compileOnlyConfigurationName(compileOnly(group = "com.google.auto.service", name = "auto-service-annotations", version = "1.1.1"))
 
     val java8Launcher = javaToolchains.launcherFor {
@@ -54,11 +54,9 @@ dependencies {
 
 java {
     registerFeature(java11.name) {
-        val capability = ProjectDerivedCapability(project)
+        capability(group.toString(), name, version.toString())
 
-        capability(capability.group, capability.name, capability.version)
-
-        usingSourceSet(sourceSets[java11.name])
+        usingSourceSet(java11)
 
         withSourcesJar()
     }

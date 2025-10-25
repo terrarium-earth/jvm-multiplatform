@@ -29,11 +29,11 @@ class VirtualSourceSetModelBuilder : ToolingModelBuilder {
 
         project.extensions
             .getByType(SourceSetContainer::class.java)
-            .all { sourceSet ->
-                val dependencies = computeSourceSet(sourceSet.name).dependencies
+            .all {
+                val dependencies = computeSourceSet(name).dependencies
 
-                sourceSet.extensions.getByType(SourceSetStaticLinkageInfo::class.java).links.all {
-                    dependencies.add(computeSourceSet(it.name))
+                extensions.getByType(SourceSetStaticLinkageInfo::class.java).links.all {
+                    dependencies.add(computeSourceSet(name))
                 }
             }
 

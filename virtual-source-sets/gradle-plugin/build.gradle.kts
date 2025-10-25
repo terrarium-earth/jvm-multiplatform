@@ -1,6 +1,6 @@
 plugins {
-    kotlin("jvm")
     id("com.google.devtools.ksp")
+    `kotlin-dsl`
     `java-gradle-plugin`
     `maven-publish`
 }

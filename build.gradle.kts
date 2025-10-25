@@ -1,10 +1,18 @@
 plugins {
     `embedded-kotlin` apply false
+    `kotlin-dsl` apply false
     id("com.google.devtools.ksp") version "$embeddedKotlinVersion-+" apply false
     id("org.jetbrains.intellij.platform") version "2.2.1" apply false
 }
 
 subprojects {
+    buildscript {
+        configurations.classpath {
+            // TODO Actually lock dependencies to make sure the ksp version is consistent
+            resolutionStrategy.activateDependencyLocking()
+        }
+    }
+
     plugins.apply("maven-publish")
 
     configure<PublishingExtension> {

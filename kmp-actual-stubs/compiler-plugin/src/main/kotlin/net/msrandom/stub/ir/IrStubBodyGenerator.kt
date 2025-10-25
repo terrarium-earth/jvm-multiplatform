@@ -34,6 +34,7 @@ class IrStubBodyGenerator(val context: IrPluginContext) : IrVisitor<Unit, IsExpe
         declaration.acceptChildren(this, false)
     }
 
+    @OptIn(UnsafeDuringIrConstructionAPI::class)
     override fun visitClass(declaration: IrClass, data: IsExpectClassMember) {
         if (data || declaration.hasAnnotation(STUB)) {
             if (declaration.kind != ClassKind.INTERFACE) {
@@ -78,9 +79,11 @@ class IrStubBodyGenerator(val context: IrPluginContext) : IrVisitor<Unit, IsExpe
         SYNTHETIC_OFFSET,
         SYNTHETIC_OFFSET
     ).build {
-        irThrow(irCallConstructor(symbols.unsupportedOperationExceptionCtor, emptyList()).apply {
-            putValueArgument(0, irString("Common modules are not runnable"))
-        })
+        val constructorCall = irCallConstructor(symbols.unsupportedOperationExceptionCtor, emptyList()).apply {
+            arguments[0] = irString("Common modules are not runnable")
+        }
+
+        irThrow(constructorCall)
     }
 
     private fun createErrorBody(declaration: IrDeclaration): IrExpressionBody {
@@ -91,8 +94,9 @@ class IrStubBodyGenerator(val context: IrPluginContext) : IrVisitor<Unit, IsExpe
     @OptIn(UnsafeDuringIrConstructionAPI::class)
     private inner class Symbols {
         val unsupportedOperationException = context.referenceClass(UNSUPPORTED_OPERATION_EXCEPTION)!!
+
         val unsupportedOperationExceptionCtor = unsupportedOperationException.constructors
-            .first { it.owner.valueParameters.size == 1 }
+            .first { it.owner.parameters.count { it.kind == IrParameterKind.Regular } == 1 }
     }
 
     companion object : IrGenerationExtension {

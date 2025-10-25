@@ -4,6 +4,8 @@ import net.msrandom.stub.STUB
 import org.jetbrains.kotlin.KtFakeSourceElementKind
 import org.jetbrains.kotlin.diagnostics.AbstractKtDiagnosticFactory
 import org.jetbrains.kotlin.fakeElement
+import org.jetbrains.kotlin.fir.FirAnnotationContainer
+import org.jetbrains.kotlin.fir.FirElement
 import org.jetbrains.kotlin.fir.FirSession
 import org.jetbrains.kotlin.fir.analysis.checkers.getModifierList
 import org.jetbrains.kotlin.fir.analysis.diagnostics.FirErrors
@@ -19,6 +21,7 @@ import org.jetbrains.kotlin.fir.plugin.createConeType
 import org.jetbrains.kotlin.fir.symbols.impl.FirClassLikeSymbol
 import org.jetbrains.kotlin.fir.toFirResolvedTypeRef
 import org.jetbrains.kotlin.fir.types.createArrayType
+import org.jetbrains.kotlin.fir.visitors.FirTransformer
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.name.StandardClassIds
 import org.jetbrains.kotlin.types.ConstantValueKind
@@ -61,9 +64,20 @@ class FirExpectTransformer(session: FirSession) : FirStatusTransformerExtension(
         isLocal: Boolean
     ): FirDeclarationStatus {
         addStubAnnotation(regularClass)
-        regularClass.declarations.forEach {
-            addSuppressions(it, FirErrors.NON_ABSTRACT_FUNCTION_WITH_NO_BODY, FirErrors.MUST_BE_INITIALIZED)
-        }
+
+        regularClass.transformDeclarations(object : FirTransformer<Nothing?>() {
+            override fun <E : FirElement> transformElement(
+                element: E,
+                data: Nothing?
+            ): E = element
+
+            override fun transformDeclaration(declaration: FirDeclaration, data: Nothing?): FirDeclaration {
+                addSuppressions(declaration, FirErrors.NON_ABSTRACT_FUNCTION_WITH_NO_BODY, FirErrors.MUST_BE_INITIALIZED)
+
+                return super.transformDeclaration(declaration, data)
+            }
+        }, null)
+
         return status.transform { isExpect = false }
     }
 

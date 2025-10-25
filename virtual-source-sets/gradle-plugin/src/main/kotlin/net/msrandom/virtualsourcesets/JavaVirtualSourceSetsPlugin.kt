@@ -40,7 +40,7 @@ private val KotlinCompile.isK2: Provider<Boolean>
         .orElse(KotlinVersion.DEFAULT)
         .map { it >= KotlinVersion.KOTLIN_2_0 }
 
-fun <T> KotlinCompile.addK2Argument(property: HasMultipleValues<T>, value: () -> T) {
+fun <T : Any> KotlinCompile.addK2Argument(property: HasMultipleValues<T>, value: () -> T) {
     property.addAll(isK2.map {
         if (it) {
             listOf(value())
@@ -57,19 +57,19 @@ open class JavaVirtualSourceSetsPlugin @Inject constructor(private val modelBuil
         project.configurations.findByName(base)?.extendsFrom(it)
     }
 
-    private fun SourceSet.addJavaCommonSources(dependency: SourceSet, task: JavaCompile) {
-        task.source(dependency.java)
+    private fun SourceSet.addJavaCommonSources(task: JavaCompile) {
+        task.source(java)
 
-        dependency.extensions.getByType(SourceSetStaticLinkageInfo::class.java).links.all {
-            addJavaCommonSources(it, task)
+        extensions.getByType(SourceSetStaticLinkageInfo::class.java).links.all {
+            addJavaCommonSources(task)
         }
     }
 
-    private fun SourceSet.addCommonResources(dependency: SourceSet, task: ProcessResources) {
-        task.from(dependency.resources)
+    private fun SourceSet.addCommonResources(task: ProcessResources) {
+        task.from(resources)
 
-        dependency.extensions.getByType(SourceSetStaticLinkageInfo::class.java).links.all {
-            addCommonResources(it, task)
+        extensions.getByType(SourceSetStaticLinkageInfo::class.java).links.all {
+            addCommonResources(task)
         }
     }
 
@@ -120,7 +120,7 @@ open class JavaVirtualSourceSetsPlugin @Inject constructor(private val modelBuil
         compileTask.source(kotlinDependency.kotlin)
 
         dependency.extensions.getByType(SourceSetStaticLinkageInfo::class.java).links.all {
-            dependency.addKotlinCommonSources(kotlin, providerFactory, it, info, compileTask)
+            dependency.addKotlinCommonSources(kotlin, providerFactory, this, info, compileTask)
         }
     }
 
@@ -131,11 +131,11 @@ open class JavaVirtualSourceSetsPlugin @Inject constructor(private val modelBuil
         }
 
         project.tasks.named(compileJavaTaskName, JavaCompile::class.java) {
-            addJavaCommonSources(dependency, it)
+            dependency.addJavaCommonSources(this)
         }
 
         project.tasks.named(processResourcesTaskName, ProcessResources::class.java) {
-            addCommonResources(dependency, it)
+            dependency.addCommonResources(this)
         }
 
         project.plugins.withId(KOTLIN_JVM) {
@@ -143,11 +143,11 @@ open class JavaVirtualSourceSetsPlugin @Inject constructor(private val modelBuil
             val kotlinCompilation = kotlin.target.compilations.getByName(name)
 
             kotlinCompilation.compileTaskProvider.configure {
-                it as KotlinCompile
+                this as KotlinCompile
 
-                it.multiPlatformEnabled.set(true)
+                this.multiPlatformEnabled.set(true)
 
-                addKotlinCommonSources(kotlin, project.serviceOf(), dependency, info, it)
+                addKotlinCommonSources(kotlin, project.serviceOf(), dependency, info, this)
             }
         }
     }
@@ -155,7 +155,9 @@ open class JavaVirtualSourceSetsPlugin @Inject constructor(private val modelBuil
     override fun apply(target: Project) {
         target.plugins.apply(JavaPlugin::class.java)
 
-        target.extensions.getByType(SourceSetContainer::class.java).all { sourceSet ->
+        target.extensions.getByType(SourceSetContainer::class.java).all {
+            val sourceSet = this
+
             val staticLinkInfo =
                 sourceSet.extensions.create(
                     "staticLinkage",
@@ -164,8 +166,8 @@ open class JavaVirtualSourceSetsPlugin @Inject constructor(private val modelBuil
                     target.objects
                 )
 
-            staticLinkInfo.links.all { dependency ->
-                sourceSet.addDependency(dependency, staticLinkInfo, target)
+            staticLinkInfo.links.all {
+                sourceSet.addDependency(this, staticLinkInfo, target)
             }
         }
 

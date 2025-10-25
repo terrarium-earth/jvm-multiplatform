@@ -1,3 +1,6 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+
 plugins {
   kotlin("jvm")
   id("org.jetbrains.intellij.platform")
@@ -30,8 +33,10 @@ tasks {
     targetCompatibility = "11"
   }
 
-  withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
-    kotlinOptions.jvmTarget = "11"
+  withType<KotlinCompile> {
+    compilerOptions {
+      jvmTarget = JvmTarget.JVM_11
+    }
   }
 
   signPlugin {
