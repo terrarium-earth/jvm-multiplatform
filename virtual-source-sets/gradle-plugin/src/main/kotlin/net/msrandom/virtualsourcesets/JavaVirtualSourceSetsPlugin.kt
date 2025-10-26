@@ -14,6 +14,7 @@ import org.gradle.api.tasks.SourceSet
 import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.internal.extensions.core.serviceOf
+import org.gradle.kotlin.dsl.getByType
 import org.gradle.language.jvm.tasks.ProcessResources
 import org.gradle.tooling.provider.model.ToolingModelBuilderRegistry
 import org.jetbrains.kotlin.gradle.InternalKotlinGradlePluginApi
@@ -60,7 +61,7 @@ open class JavaVirtualSourceSetsPlugin @Inject constructor(private val modelBuil
     private fun SourceSet.addJavaCommonSources(task: JavaCompile) {
         task.source(java)
 
-        extensions.getByType(SourceSetStaticLinkageInfo::class.java).links.all {
+        extensions.getByType<SourceSetStaticLinkageInfo>().links.all {
             addJavaCommonSources(task)
         }
     }
@@ -68,7 +69,7 @@ open class JavaVirtualSourceSetsPlugin @Inject constructor(private val modelBuil
     private fun SourceSet.addCommonResources(task: ProcessResources) {
         task.from(resources)
 
-        extensions.getByType(SourceSetStaticLinkageInfo::class.java).links.all {
+        extensions.getByType<SourceSetStaticLinkageInfo>().links.all {
             addCommonResources(task)
         }
     }
@@ -119,7 +120,7 @@ open class JavaVirtualSourceSetsPlugin @Inject constructor(private val modelBuil
         commonSourceSet.get(compileTask).from(kotlinDependency.kotlin)
         compileTask.source(kotlinDependency.kotlin)
 
-        dependency.extensions.getByType(SourceSetStaticLinkageInfo::class.java).links.all {
+        dependency.extensions.getByType<SourceSetStaticLinkageInfo>().links.all {
             dependency.addKotlinCommonSources(kotlin, providerFactory, this, info, compileTask)
         }
     }
@@ -139,7 +140,7 @@ open class JavaVirtualSourceSetsPlugin @Inject constructor(private val modelBuil
         }
 
         project.plugins.withId(KOTLIN_JVM) {
-            val kotlin = project.extensions.getByType(KotlinSingleJavaTargetExtension::class.java)
+            val kotlin = project.extensions.getByType<KotlinSingleJavaTargetExtension>()
             val kotlinCompilation = kotlin.target.compilations.getByName(name)
 
             kotlinCompilation.compileTaskProvider.configure {
@@ -155,7 +156,7 @@ open class JavaVirtualSourceSetsPlugin @Inject constructor(private val modelBuil
     override fun apply(target: Project) {
         target.plugins.apply(JavaPlugin::class.java)
 
-        target.extensions.getByType(SourceSetContainer::class.java).all {
+        target.extensions.getByType<SourceSetContainer>().all {
             val sourceSet = this
 
             val staticLinkInfo =

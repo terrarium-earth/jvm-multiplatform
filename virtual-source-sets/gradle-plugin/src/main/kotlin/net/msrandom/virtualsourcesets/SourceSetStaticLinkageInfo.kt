@@ -1,12 +1,13 @@
 package net.msrandom.virtualsourcesets
 
-import org.gradle.api.DomainObjectSet
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.tasks.SourceSet
+import org.gradle.kotlin.dsl.domainObjectSet
+import org.gradle.kotlin.dsl.listProperty
 
 open class SourceSetStaticLinkageInfo(val sourceSet: SourceSet, private val objectFactory: ObjectFactory) {
-    val links: DomainObjectSet<SourceSet> = objectFactory.domainObjectSet(SourceSet::class.java)
+    val links = objectFactory.domainObjectSet(SourceSet::class)
 
     private val weakTreeLinks = hashMapOf<SourceSet, ListProperty<SourceSet>>()
 
@@ -28,6 +29,6 @@ open class SourceSetStaticLinkageInfo(val sourceSet: SourceSet, private val obje
     }
 
     fun weakTreeLinks(from: SourceSet) = weakTreeLinks.computeIfAbsent(from) {
-        objectFactory.listProperty(SourceSet::class.java)
+        objectFactory.listProperty<SourceSet>()
     }
 }
