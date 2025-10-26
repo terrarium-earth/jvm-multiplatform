@@ -14,6 +14,8 @@ import org.gradle.api.tasks.SourceSet
 import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.internal.extensions.core.serviceOf
+import org.gradle.kotlin.dsl.apply
+import org.gradle.kotlin.dsl.create
 import org.gradle.kotlin.dsl.getByType
 import org.gradle.language.jvm.tasks.ProcessResources
 import org.gradle.tooling.provider.model.ToolingModelBuilderRegistry
@@ -154,7 +156,7 @@ open class JavaVirtualSourceSetsPlugin @Inject constructor(private val modelBuil
     }
 
     override fun apply(target: Project) {
-        target.plugins.apply(JavaPlugin::class.java)
+        target.apply<JavaPlugin>()
 
         target.extensions.getByType<SourceSetContainer>().all {
             val sourceSet = this
@@ -162,7 +164,7 @@ open class JavaVirtualSourceSetsPlugin @Inject constructor(private val modelBuil
             val staticLinkInfo =
                 sourceSet.extensions.create(
                     "staticLinkage",
-                    SourceSetStaticLinkageInfo::class.java,
+                    SourceSetStaticLinkageInfo::class,
                     sourceSet,
                     target.objects
                 )
