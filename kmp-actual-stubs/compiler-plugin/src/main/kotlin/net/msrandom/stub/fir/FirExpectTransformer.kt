@@ -53,7 +53,10 @@ class FirExpectTransformer(session: FirSession) : FirStatusTransformerExtension(
         isLocal: Boolean
     ): FirDeclarationStatus {
         addStubAnnotation(property)
-        addSuppressions(property, FirErrors.MUST_BE_INITIALIZED)
+        addSuppressions(property,
+            FirErrors.MUST_BE_INITIALIZED,
+            FirErrors.EXTENSION_PROPERTY_MUST_HAVE_ACCESSORS_OR_BE_ABSTRACT,
+        )
         return status.transform { isExpect = false }
     }
 
@@ -72,7 +75,11 @@ class FirExpectTransformer(session: FirSession) : FirStatusTransformerExtension(
             ): E = element
 
             override fun transformDeclaration(declaration: FirDeclaration, data: Nothing?): FirDeclaration {
-                addSuppressions(declaration, FirErrors.NON_ABSTRACT_FUNCTION_WITH_NO_BODY, FirErrors.MUST_BE_INITIALIZED)
+                addSuppressions(declaration,
+                    FirErrors.NON_ABSTRACT_FUNCTION_WITH_NO_BODY,
+                    FirErrors.MUST_BE_INITIALIZED,
+                    FirErrors.EXTENSION_PROPERTY_MUST_HAVE_ACCESSORS_OR_BE_ABSTRACT,
+                )
 
                 return super.transformDeclaration(declaration, data)
             }
