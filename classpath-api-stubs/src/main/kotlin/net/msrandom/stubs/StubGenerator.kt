@@ -139,9 +139,9 @@ object StubGenerator {
             }
 
         val intersectedExcludedArtifacts = classpaths.map { it.intersectionExcluded }.reduce { a, b ->
-            val artifactsA = a.groupBy { it.moduleComponent.get().moduleIdentifier }
+            val artifactsA = a.groupBy { it.moduleId.get() }
 
-            val artifactsB = b.groupBy { it.moduleComponent.get().moduleIdentifier }
+            val artifactsB = b.groupBy { it.moduleId.get() }
 
             val intersections = artifactsA.keys.intersect(artifactsB.keys)
 
@@ -150,7 +150,7 @@ object StubGenerator {
                 val relevantArtifactsB = artifactsB[id] ?: return@flatMap emptyList()
 
                 listOf(relevantArtifactsA, relevantArtifactsB).minBy {
-                    it[0].moduleComponent.get().version
+                    it[0].moduleVersion.get()
                 }
             }
         }

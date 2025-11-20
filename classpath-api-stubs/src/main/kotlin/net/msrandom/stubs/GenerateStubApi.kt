@@ -1,6 +1,7 @@
 package net.msrandom.stubs
 
 import org.gradle.api.DefaultTask
+import org.gradle.api.artifacts.ModuleIdentifier
 import org.gradle.api.artifacts.component.ComponentIdentifier
 import org.gradle.api.artifacts.component.ModuleComponentIdentifier
 import org.gradle.api.artifacts.component.ProjectComponentIdentifier
@@ -75,7 +76,12 @@ abstract class GenerateStubApi : DefaultTask() {
             @Input
             get
 
-        val moduleComponent: Property<ModuleComponentIdentifier>
+        val moduleVersion: Property<String>
+            @Optional
+            @Input
+            get
+
+        val moduleId: Property<ModuleIdentifier>
             @Optional
             @Input
             get
@@ -90,7 +96,8 @@ abstract class GenerateStubApi : DefaultTask() {
             when (component) {
                 is ModuleComponentIdentifier -> {
                     type.set(Type.Module)
-                    moduleComponent.set(component)
+                    moduleId.set(component.moduleIdentifier)
+                    moduleVersion.set(component.version)
                 }
                 is ProjectComponentIdentifier -> {
                     type.set(Type.Project)
