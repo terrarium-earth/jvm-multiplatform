@@ -1,8 +1,6 @@
 package net.msrandom.stubs
 
 import net.msrandom.stubs.ClassNodeIntersector.intersectClassNodes
-import org.gradle.api.artifacts.component.ModuleComponentIdentifier
-import org.gradle.api.artifacts.component.ProjectComponentIdentifier
 import org.objectweb.asm.ClassReader
 import org.objectweb.asm.ClassWriter
 import org.objectweb.asm.tree.ClassNode
@@ -54,7 +52,11 @@ object StubGenerator {
         }
     }
 
-    fun generateStub(classpaths: Iterable<List<GenerateStubApi.ResolvedArtifact>>, extraExcludes: List<String>, output: Path): List<GenerateStubApi.ResolvedArtifact> {
+    fun generateStub(
+        classpaths: Iterable<List<GenerateStubApi.ResolvedArtifact>>,
+        extraExcludes: List<String>,
+        output: Path
+    ): List<GenerateStubApi.ResolvedArtifact> {
         val exclude = listOf(
             "org.jetbrains",
             "org.apache",
@@ -86,12 +88,13 @@ object StubGenerator {
         ) + extraExcludes
 
         val classpaths = classpaths.map { artifacts ->
-            assert(artifacts.none { it.id.orNull is ProjectComponentIdentifier })
-
             val (excluded, included) = artifacts.partition {
-                val id = it.id.orNull
+                val type = it.type.orNull
+                assert(type !== GenerateStubApi.ResolvedArtifact.Type.Project)
 
-                id is ModuleComponentIdentifier && exclude.any(id.displayName::startsWith)
+                val id = it.componentId.orNull ?: return@partition false
+
+                type === GenerateStubApi.ResolvedArtifact.Type.Module && exclude.any(id::startsWith)
             }
 
             ClasspathLoader(
@@ -136,13 +139,9 @@ object StubGenerator {
             }
 
         val intersectedExcludedArtifacts = classpaths.map { it.intersectionExcluded }.reduce { a, b ->
-            val artifactsA = a.groupBy {
-                (it.id.get() as ModuleComponentIdentifier).moduleIdentifier
-            }
+            val artifactsA = a.groupBy { it.moduleComponent.get().moduleIdentifier }
 
-            val artifactsB = b.groupBy {
-                (it.id.get() as ModuleComponentIdentifier).moduleIdentifier
-            }
+            val artifactsB = b.groupBy { it.moduleComponent.get().moduleIdentifier }
 
             val intersections = artifactsA.keys.intersect(artifactsB.keys)
 
@@ -151,7 +150,7 @@ object StubGenerator {
                 val relevantArtifactsB = artifactsB[id] ?: return@flatMap emptyList()
 
                 listOf(relevantArtifactsA, relevantArtifactsB).minBy {
-                    (it[0].id.get() as ModuleComponentIdentifier).version
+                    it[0].moduleComponent.get().version
                 }
             }
         }

@@ -2,6 +2,8 @@ package net.msrandom.stubs
 
 import org.gradle.api.DefaultTask
 import org.gradle.api.artifacts.component.ComponentIdentifier
+import org.gradle.api.artifacts.component.ModuleComponentIdentifier
+import org.gradle.api.artifacts.component.ProjectComponentIdentifier
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.ListProperty
@@ -52,7 +54,7 @@ abstract class GenerateStubApi : DefaultTask() {
         val extras = StubGenerator.generateStub(classpaths.get(), excludes.get(), apiFile)
 
         for (artifact in extras) {
-            val directory = outputDirectory.resolve(artifact.id.get().displayName.replace(':', '_'))
+            val directory = outputDirectory.resolve(artifact.componentId.get().replace(':', '_'))
 
             directory.createDirectories()
 
@@ -63,7 +65,17 @@ abstract class GenerateStubApi : DefaultTask() {
     }
 
     interface ResolvedArtifact {
-        val id: Property<ComponentIdentifier>
+        val componentId: Property<String>
+            @Optional
+            @Input
+            get
+
+        val type: Property<Type>
+            @Optional
+            @Input
+            get
+
+        val moduleComponent: Property<ModuleComponentIdentifier>
             @Optional
             @Input
             get
@@ -72,5 +84,22 @@ abstract class GenerateStubApi : DefaultTask() {
             @CompileClasspath
             @InputFile
             get
+
+        fun setComponent(component: ComponentIdentifier) {
+            componentId.set(component.toString())
+            when (component) {
+                is ModuleComponentIdentifier -> {
+                    type.set(Type.Module)
+                    moduleComponent.set(component)
+                }
+                is ProjectComponentIdentifier -> {
+                    type.set(Type.Project)
+                }
+            }
+        }
+
+        enum class Type {
+            Module, Project
+        }
     }
 }
