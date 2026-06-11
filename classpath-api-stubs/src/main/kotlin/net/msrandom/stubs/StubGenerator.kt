@@ -1,25 +1,23 @@
 package net.msrandom.stubs
 
 import net.msrandom.stubs.ClassNodeIntersector.intersectClassNodes
+import org.gradle.internal.impldep.kotlinx.coroutines.Dispatchers
+import org.gradle.internal.impldep.kotlinx.coroutines.launch
+import org.gradle.internal.impldep.kotlinx.coroutines.runBlocking
 import org.objectweb.asm.ClassReader
 import org.objectweb.asm.ClassWriter
 import org.objectweb.asm.tree.ClassNode
 import java.io.File
 import java.net.URI
-import java.net.URLClassLoader
 import java.nio.file.FileSystems
 import java.nio.file.Path
+import java.util.concurrent.ConcurrentHashMap
 import java.util.jar.JarFile
 import java.util.jar.Manifest
 import java.util.zip.ZipInputStream
-import kotlin.io.path.createDirectories
-import kotlin.io.path.createDirectory
-import kotlin.io.path.deleteIfExists
-import kotlin.io.path.outputStream
-import kotlin.io.path.writeBytes
+import kotlin.io.path.*
 
 object StubGenerator {
-
 
     private fun createFileIntersection(
         streams: List<Pair<ClasspathLoader, ClassNode>>,
@@ -110,7 +108,7 @@ object StubGenerator {
 
         val filteredEntries = entries.filter { entry ->
             rest.all {
-                it.loader.getResource(entry) != null
+                it.hasEntry(entry)
             }
         }
 
@@ -123,16 +121,22 @@ object StubGenerator {
 
                 manifestPath.outputStream().use(Manifest()::write)
 
-                for (entry in filteredEntries) {
-                    val streams = classpaths.map {
-                        it to it.entry(entry)!!
-                    }
+                runBlocking(Dispatchers.IO) {
+                    filteredEntries.map { entry ->
+                        launch {
+                            val streams = classpaths.map {
+                                it to it.entry(entry)!!
+                            }
 
-                    val path = fileSystem.getPath(entry)
+                            val path = fileSystem.getPath(entry)
 
-                    path.parent?.createDirectories()
+                            synchronized(fileSystem) {
+                                path.parent?.createDirectories()
+                            }
 
-                    createFileIntersection(streams, path)
+                            createFileIntersection(streams, path)
+                        }
+                    }.forEach { it.join() }
                 }
             }
 
@@ -154,7 +158,6 @@ object StubGenerator {
         }
 
         for (classpath in classpaths) {
-            // TODO Make this exception safe
             classpath.close()
         }
 
@@ -164,22 +167,35 @@ object StubGenerator {
     internal class ClasspathLoader(
         val intersectionIncluded: List<File>,
         val intersectionExcluded: List<GenerateStubApi.ResolvedArtifact>,
-        private val cache: MutableMap<String, ClassNode?> = hashMapOf(),
+        // Cache bytecode to avoid repeated JAR reads
+        private val bytecodeCache: ConcurrentHashMap<String, ByteArray?> = ConcurrentHashMap(),
     ) : AutoCloseable {
-        val loader = URLClassLoader(
-            (intersectionIncluded + intersectionExcluded.map { it.file.asFile.get() })
-                .map { it.toURI().toURL() }
-                .toTypedArray(),
-        )
+        private val allFiles = intersectionIncluded + intersectionExcluded.map { it.file.asFile.get() }
 
-        fun entry(name: String) = cache.computeIfAbsent(name) {
-            loader.getResourceAsStream(name)?.let { stream ->
-                ClassNode().apply {
-                    stream.use(::ClassReader).accept(this, 0)
+        // Use JarFile for thread-safe access
+        private val jarFiles = allFiles.map { JarFile(it) }
+
+        fun hasEntry(name: String): Boolean {
+            return jarFiles.any { it.getEntry(name) != null }
+        }
+
+        fun entry(name: String): ClassNode? {
+            val bytecode = bytecodeCache.computeIfAbsent(name) {
+                for (jar in jarFiles) {
+                    val entry = jar.getEntry(name) ?: continue
+                    return@computeIfAbsent jar.getInputStream(entry).use { it.readBytes() }
                 }
+                null
+            } ?: return null
+
+            // Parse fresh ClassNode from bytecode to avoid shared mutable state
+            return ClassNode().apply {
+                ClassReader(bytecode).accept(this, 0)
             }
         }
 
-        override fun close() = loader.close()
+        override fun close() {
+            jarFiles.forEach { it.close() }
+        }
     }
 }
