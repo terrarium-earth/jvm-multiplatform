@@ -3,6 +3,8 @@ package net.msrandom.stub
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 
+public const val PLUGIN_ID = "net.msrandom.stub"
+
 val STUB: ClassId = ClassId.topLevel(FqName("net.msrandom.stub.Stub"))
 
 val UNSUPPORTED_OPERATION_EXCEPTION = ClassId.topLevel(FqName("java.lang.UnsupportedOperationException"))
