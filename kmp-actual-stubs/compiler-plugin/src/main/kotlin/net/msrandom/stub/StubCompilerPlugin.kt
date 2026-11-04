@@ -17,6 +17,8 @@ class StubCompilerPlugin : CompilerPluginRegistrar() {
 
     override val supportsK2: Boolean = true
 
+    val pluginId: String = PLUGIN_ID
+
     override fun ExtensionStorage.registerExtensions(
         configuration: CompilerConfiguration
     ) {
