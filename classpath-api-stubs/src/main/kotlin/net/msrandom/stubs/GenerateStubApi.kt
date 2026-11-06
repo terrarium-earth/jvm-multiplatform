@@ -9,22 +9,21 @@ import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
-import org.gradle.api.tasks.CacheableTask
-import org.gradle.api.tasks.CompileClasspath
-import org.gradle.api.tasks.Input
-import org.gradle.api.tasks.InputFile
-import org.gradle.api.tasks.Nested
-import org.gradle.api.tasks.Optional
-import org.gradle.api.tasks.OutputDirectory
-import org.gradle.api.tasks.TaskAction
+import org.gradle.api.tasks.*
+import org.gradle.workers.WorkAction
+import org.gradle.workers.WorkParameters
+import org.gradle.workers.WorkerExecutor
 import java.nio.file.StandardCopyOption
+import javax.inject.Inject
 import kotlin.io.path.ExperimentalPathApi
 import kotlin.io.path.copyTo
 import kotlin.io.path.createDirectories
 import kotlin.io.path.deleteRecursively
 
 @CacheableTask
-abstract class GenerateStubApi : DefaultTask() {
+abstract class GenerateStubApi @Inject constructor(
+    private val workerExecutor: WorkerExecutor
+) : DefaultTask() {
     abstract val classpaths: ListProperty<List<ResolvedArtifact>>
         @Nested get
 
@@ -50,18 +49,50 @@ abstract class GenerateStubApi : DefaultTask() {
         outputDirectory.deleteRecursively()
         outputDirectory.createDirectories()
 
-        val apiFile = outputDirectory.resolve(apiFileName.get())
+        val apiFile = this.outputDirectory.file(apiFileName.get())
 
-        val extras = StubGenerator.generateStub(classpaths.get(), excludes.get(), apiFile)
+        val workQueue = workerExecutor.noIsolation()
 
-        for (artifact in extras) {
-            val directory = outputDirectory.resolve(artifact.componentId.get().replace(':', '_'))
+        workQueue.submit(StubGenerationWork::class.java) {
+            classpaths.set(this@GenerateStubApi.classpaths)
+            excludes.set(this@GenerateStubApi.excludes)
+            this.apiFile.value(apiFile)
+            this.outputDirectory.value(this@GenerateStubApi.outputDirectory)
+        }
+    }
 
-            directory.createDirectories()
+    interface StubGenerationParameters : WorkParameters {
+        val classpaths: ListProperty<List<ResolvedArtifact>>
+        val excludes: ListProperty<String>
+        val apiFile: RegularFileProperty
+        val outputDirectory: DirectoryProperty
+    }
 
-            val path = artifact.file.asFile.get()
+    abstract class StubGenerationWork : WorkAction<StubGenerationParameters> {
+        override fun execute() {
+            val params = parameters
+            val apiFile = params.apiFile.get().asFile.toPath()
+            val outputDir = params.outputDirectory.get().asFile.toPath()
 
-            path.toPath().copyTo(directory.resolve(path.name), StandardCopyOption.REPLACE_EXISTING)
+            val extras = StubGenerator.generateStub(
+                params.classpaths.get(),
+                params.excludes.get(),
+                apiFile
+            )
+
+            extras.parallelStream().forEach { artifact ->
+                val directory = outputDir.resolve(
+                    artifact.componentId.get().replace(':', '_')
+                )
+
+                directory.createDirectories()
+
+                val path = artifact.file.asFile.get()
+                path.toPath().copyTo(
+                    directory.resolve(path.name),
+                    StandardCopyOption.REPLACE_EXISTING
+                )
+            }
         }
     }
 

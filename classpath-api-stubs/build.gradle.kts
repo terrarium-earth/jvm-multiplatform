@@ -30,6 +30,7 @@ repositories {
 
 dependencies {
     implementation(group = "org.ow2.asm", name = "asm-tree", version = "9.7.1")
+    api(group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version = "1.8.1")
     // implementation(group = "org.jetbrains.kotlin", name = "kotlin-metadata-jvm", version = "2.1.0")
 
     testImplementation(kotlin("test"))
